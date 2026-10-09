@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Loader2, Lock, X } from 'lucide-react'
+import { Check, GitBranch, Loader2, Lock, X } from 'lucide-react'
 import CodeCurtain from '../components/ui/code-curtain'
 import { API_URL, MODE, readAuth, writeAuth } from '../lib/useAgent'
 import { ENDPOINTS, GUARDRAILS } from '../lib/contract'
@@ -46,8 +46,39 @@ export default function Onboarding({ state, onFinish }) {
   const [review, setReview] = useState(true)
   const [phase, setPhase] = useState('writing')
 
-  const signIn = (e) => {
+  const [authErr, setAuthErr] = useState(() => {
+    const e = new URLSearchParams(location.search).get('auth')
+    return e === 'denied' ? 'This GitHub account is not on the Rootlane team.' : e ? 'GitHub sign-in failed. Try again.' : ''
+  })
+  const [authBusy, setAuthBusy] = useState(false)
+  const [useToken, setUseToken] = useState(false)
+
+  // Live mode: if the GitHub session cookie exists, skip the sign-in step
+  useEffect(() => {
+    if (MODE !== 'live') return
+    if (location.search.includes('auth=')) history.replaceState(null, '', location.pathname)
+    fetch('/api/auth?a=me', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => { if (me?.login) { writeAuth({ name: me.login, github: true, avatar: me.avatar }); setName(me.login); setStep((s) => (s === 0 ? 1 : s)) } })
+      .catch(() => {})
+  }, [])
+
+  // En modo real valida el token contra el toolbox: un reject sobre un id que no existe
+  // devuelve 401 si el token es malo y 404 si es bueno (no cambia nada en el backend).
+  const signIn = async (e) => {
     e.preventDefault()
+    setAuthErr('')
+    if (MODE === 'live') {
+      setAuthBusy(true)
+      const code = await fetch(API_URL + '/api/incidents/__signin_check__/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token.trim() },
+        body: JSON.stringify({ approver: name.trim(), reason: 'sign-in check' }),
+      }).then((r) => r.status).catch(() => 0)
+      setAuthBusy(false)
+      if (code === 401) { setAuthErr('That admin token is not valid.'); return }
+      if (code === 0) { setAuthErr(`Could not reach ${API_URL}.`); return }
+    }
     writeAuth({ name: name.trim(), token: token.trim() })
     setStep(1)
   }
@@ -150,6 +181,20 @@ export default function Onboarding({ state, onFinish }) {
               className="rounded-2xl border border-ink-600 bg-ink-900 p-5 shadow-2xl">
 
               {step === 0 && (
+                MODE === 'live' && !useToken ? (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Sign in to Rootlane</h2>
+                    <p className="mt-1 text-sm text-mute-400">Your GitHub account is recorded on every fix you approve.</p>
+                  </div>
+                  {authErr && <p role="alert" className="text-sm text-bad">{authErr}</p>}
+                  <a href="/api/auth?a=login" className="hex flex w-full items-center justify-center gap-2 bg-mute-100 py-3 text-sm font-semibold text-ink-950 transition hover:bg-white">
+                    <GitBranch className="h-4 w-4" /> Continue with GitHub
+                  </a>
+                  <button type="button" onClick={() => { setAuthErr(''); setUseToken(true) }} className="w-full text-center text-xs text-mute-400 hover:text-mute-200">Use an admin token instead</button>
+                  <p className="flex items-center gap-1.5 text-xs text-mute-400"><Lock className="h-3.5 w-3.5" /> Only Rootlane team members can approve fixes. The admin token stays on the server.</p>
+                </div>
+                ) : (
                 <form onSubmit={signIn} className="space-y-4">
                   <div>
                     <h2 className="text-lg font-semibold">Sign in to Rootlane</h2>
@@ -165,9 +210,11 @@ export default function Onboarding({ state, onFinish }) {
                     <input id="token" type="password" required={MODE === 'live'} value={token} onChange={(e) => setToken(e.target.value)} placeholder="••••••••"
                       className="w-full rounded-lg border border-ink-600 bg-ink-950 px-3 py-2.5 font-mono text-sm text-mute-100 placeholder:text-mute-400 focus:border-lime/60 focus:outline-none" />
                   </div>
-                  <button type="submit" className="hex w-full bg-mute-100 py-3 text-sm font-semibold text-ink-950 transition hover:bg-white">Sign in</button>
-                  <p className="flex items-center gap-1.5 text-xs text-mute-400"><Lock className="h-3.5 w-3.5" /> The token stays in this browser and is only sent when you approve or reject a fix.</p>
+                  {authErr && <p role="alert" className="text-sm text-bad">{authErr}</p>}
+                  <button type="submit" disabled={authBusy} className="hex w-full bg-mute-100 py-3 text-sm font-semibold text-ink-950 transition hover:bg-white disabled:opacity-60">{authBusy ? 'Checking token…' : 'Sign in'}</button>
+                  <p className="flex items-center gap-1.5 text-xs text-mute-400"><Lock className="h-3.5 w-3.5" /> The token is checked against the Rootlane API, stays in this browser, and signs every approve or reject.</p>
                 </form>
+                )
               )}
 
               {step === 1 && (
