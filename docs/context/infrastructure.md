@@ -23,15 +23,15 @@ State as of 2026-10-09 ~13:40 PT. Secrets live only in each teammate's local `.e
 
 ## Deployment
 
-- Three images and three Akash deployments:
+- Juice Shop and the toolbox run on Akash (two images, two deployments); the dashboard runs on Vercel:
   - `juiceshop`: Juice Shop built from the fork + telemetry middleware (Node 22).
   - `toolbox`: Python FastAPI + Semgrep + Node 22 and the fork source for ephemeral replicas.
-  - `dashboard`: static Vite build served by a small web server.
+  - `dashboard`: Vercel project with Root Directory `frontend/`, framework Vite, env `VITE_API_BASE_URL=https://api.rootlane.xyz`; redeploys on every push to `main`.
 - GitHub Actions builds each image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane-<app>`); Akash pulls it. Each app keeps its Akash SDL in its own folder (`<app>/deploy/akash.sdl.yaml`) and created through the Akash Console API.
 - Public hostnames, each a proxied Cloudflare CNAME to the Akash provider ingress host, listed in the SDL `accept:` field:
   - `juiceshop.rootlane.xyz` → Juice Shop
   - `api.rootlane.xyz` → toolbox API (the Guild integration base URL)
-  - `app.rootlane.xyz` → dashboard
+  - `app.rootlane.xyz` → dashboard on Vercel (CNAME `cname.vercel-dns.com`, DNS only, so Vercel issues the certificate)
 - Cloudflare terminates HTTPS (Flexible): browser ⇄ Cloudflare is HTTPS, Cloudflare ⇄ Akash is HTTP.
 - Secrets are passed as Akash environment variables from the local `.env`, never baked into the image.
 - Redeploy = new image tag + Akash deployment update. Applying an approved fix redeploys the `juiceshop` app from the patched source through the same path.
