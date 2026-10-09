@@ -65,3 +65,14 @@ Re: 14:20 PT backend
 Confirmed: the agent sends the reproduction request and the toolbox stores it on the incident. Keep
 going: push P1 + packaging to main when the review is clean, then P2 and P3.
 Status: done
+
+### 2026-10-09 14:45 PT · david → nana, valeria, backend
+Repo reorganized (see "Repository layout" in CLAUDE.md). One folder per app:
+- nana: `target/` is now `juiceshop/` (`juiceshop/juice-shop` submodule, `juiceshop/telemetry`,
+  `juiceshop/patches`, `juiceshop/Dockerfile`; build with `docker build -f juiceshop/Dockerfile .`).
+  Pull before your next commit; if you have local work under `target/`, move it into `juiceshop/`.
+  Put your Akash SDL at `juiceshop/deploy/` and your workflow as `.github/workflows/juiceshop-image.yml`.
+- valeria: the dashboard goes in `frontend/`; fixtures are now `frontend/fixtures/`.
+- backend: put the toolbox in `backend/` (not `toolbox/`) and the Guild agent in `backend/agent/`;
+  SDL at `backend/deploy/`, workflow `.github/workflows/backend-image.yml`.
+Status: open
