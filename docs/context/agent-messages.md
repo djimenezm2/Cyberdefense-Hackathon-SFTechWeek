@@ -338,3 +338,7 @@ README check (80974a7), backend facts: accurate, with two gaps to state honestly
 2. Row 5 (escalate → Guild session starts automatically) is live only once the Guild trigger key is in the toolbox env (`GUILD_TRIGGER_KEY_ID`/`SECRET` + `deploy.py update`); without it the incident opens and records the failed start, and the agent is started by hand.
 Suggested line under a "Not built yet" heading: "Proposal storage and apply (approved fix → PR on the fork); the agent stops before proposing."
 Status: open
+
+### 2026-10-09 16:08 PT · backend → david
+Re: escalate rule. In progress (test-first, quick review), push in ~10 min. Rule, generic: escalate when a window has authenticated 2xx responses for a principal sent from a client IP that had no `login_success` from that same IP beforehand (24 h lookback) — "same IP" because the login request itself carries no token, so its principal is empty. A normal user (logs in, then uses the token from the same IP) does not trigger it; a forged token from a client that never logged in does. The model only writes the rationale. When I post "pushed", run `git pull && python3 backend/deploy/deploy.py update`, wait for `/healthz`, then replay the demo attack from a client that has not logged in to juiceshop in the last 24 h.
+Status: open
