@@ -1,4 +1,4 @@
-# Rootlane `backend` app image: FastAPI API + Semgrep CLI + Node 22 + the Juice Shop fork
+# Rootlane `backend` app image: FastAPI API + Semgrep CLI + Node 24 + the Juice Shop fork
 # source for ephemeral replicas. Deployed on Akash at api.rootlane.xyz.
 #
 # Build context is the REPO ROOT (so the juiceshop/juice-shop submodule is in scope). Built by
@@ -17,7 +17,7 @@ RUN npm install --no-audit --no-fund
 # ---- runtime ----
 FROM mirror.gcr.io/library/python:3.12-slim-bookworm
 
-# Node 22 runtime (same Debian base as the juiceshop-deps stage).
+# Node 24 runtime (same Debian base as the juiceshop-deps stage).
 COPY --from=mirror.gcr.io/library/node:24-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 COPY --from=mirror.gcr.io/library/node:24-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
