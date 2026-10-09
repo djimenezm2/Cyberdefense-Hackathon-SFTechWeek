@@ -2,7 +2,7 @@
 Deploy the toolbox to Akash through the Akash Console API.
 
 Usage:
-    python deploy.py create [--sdl bootstrap|image] [--tag SHA] [--env-file PATH]
+    python deploy.py create [--sdl bootstrap|image] [--tag SHA] [--env-file PATH] [--dry-run]
     python deploy.py update [--sdl bootstrap|image] [--tag SHA] [--env-file PATH]
     python deploy.py status
 
@@ -31,6 +31,30 @@ DEFAULTS = {
     "CORS_ORIGINS": "https://app.rootlane.xyz",
     "ANALYZE_INTERVAL_S": "10",
 }
+REQUIRED = (
+    "CLICKHOUSE_HOST",
+    "CLICKHOUSE_USER",
+    "CLICKHOUSE_PASSWORD",
+    "CLICKHOUSE_RO_PASSWORD",
+    "TOOLBOX_API_KEY",
+    "ADMIN_TOKEN",
+    "INGEST_TOKEN",
+    "TRIAGE_API_KEY",
+)
+ALLOWED = (
+    *REQUIRED,
+    "CLICKHOUSE_RO_USER",
+    "CLICKHOUSE_DATABASE",
+    "CORS_ORIGINS",
+    "TRIAGE_BASE_URL",
+    "TRIAGE_MODEL",
+    "ANALYZE_INTERVAL_S",
+    "GUILD_WORKSPACE",
+    "GUILD_TRIGGER_KEY_ID",
+    "GUILD_TRIGGER_SECRET",
+    "GITHUB_TOKEN",
+    "JUICE_SHOP_REPO",
+)
 
 _ENV_LINE = re.compile(rf"^(\s*)- ([A-Z0-9_]+)={PLACEHOLDER}\s*$")
 _IMAGE_LINE = re.compile(r"^(\s*image:\s*\S+?):[^:\s/]+\s*$")
@@ -70,18 +94,48 @@ def render_sdl(template: str, env: dict[str, str], image_tag: str | None = None)
 
 def deploy_env(dotenv: dict[str, str]) -> dict[str, str]:
     """
-    Build the deploy-time env from the local .env values.
+    Build the container env from the local .env values, limited to the allowlist.
 
     Args:
         dotenv (dict[str, str]): Values read from the .env file.
 
     Returns:
-        dict[str, str]: The values with defaults applied and the triage key mapped.
+        dict[str, str]: Allowlisted, non-empty values with defaults applied and the triage key mapped.
+
+    Raises:
+        ValueError: If a required name has no value; the message lists names only.
     """
-    env = {**DEFAULTS, **{k: v for k, v in dotenv.items() if v}}
-    if not env.get("TRIAGE_API_KEY") and env.get("AKASHML_API_KEY"):
-        env["TRIAGE_API_KEY"] = env["AKASHML_API_KEY"]
-    return env
+    merged = {**DEFAULTS, **{k: v for k, v in dotenv.items() if v}}
+    if not merged.get("TRIAGE_API_KEY") and merged.get("AKASHML_API_KEY"):
+        merged["TRIAGE_API_KEY"] = merged["AKASHML_API_KEY"]
+    missing = [name for name in REQUIRED if not merged.get(name)]
+    if missing:
+        raise ValueError(f"missing required deploy vars: {', '.join(missing)}")
+    return {name: merged[name] for name in ALLOWED if merged.get(name)}
+
+
+def sent_env_names(sdl: str) -> list[str]:
+    """List the env var names a rendered SDL carries, without their values."""
+    return re.findall(r'^\s*- "([A-Z0-9_]+)=', sdl, flags=re.MULTILINE)
+
+
+def error_message(code: int, body: bytes) -> str:
+    """
+    Summarize an HTTP error without echoing the response body.
+
+    Args:
+        code (int): The HTTP status code.
+        body (bytes): The raw response body.
+
+    Returns:
+        str: `<code>: <message or error field>`, the field cut to 300 characters.
+    """
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        payload = {}
+    detail = (payload.get("message") or payload.get("error") or "") if isinstance(payload, dict) else ""
+    return f"{code}: {str(detail)[:300]}"
 
 
 def cheapest_bid(bids: list[dict]) -> dict | None:
@@ -120,7 +174,7 @@ def call(method: str, path: str, key: str, body: dict | None = None) -> dict:
         with urllib.request.urlopen(request, timeout=120) as response:
             return json.loads(response.read() or b"{}")
     except urllib.error.HTTPError as error:
-        sys.exit(f"{method} {path} -> {error.code}: {error.read().decode()[:2000]}")
+        sys.exit(f"{method} {path} -> {error_message(error.code, error.read())}")
 
 
 def load_state() -> dict:
@@ -180,17 +234,28 @@ def main() -> None:
     parser.add_argument("--sdl", choices=sorted(SDLS), default="bootstrap")
     parser.add_argument("--tag", help="image tag for the image SDL")
     parser.add_argument("--env-file", type=Path, default=HERE.parents[1] / ".env")
+    parser.add_argument("--dry-run", action="store_true", help="print the env names and target, send nothing")
     args = parser.parse_args()
 
     dotenv = read_dotenv(args.env_file) if args.env_file.exists() else {}
+    if args.command != "status":
+        try:
+            sdl = render_sdl(SDLS[args.sdl].read_text(), deploy_env(dotenv), image_tag=args.tag)
+        except ValueError as error:
+            sys.exit(str(error))
+        if args.dry_run:
+            print("target", API, "command", args.command, "sdl", SDLS[args.sdl].name)
+            print("env names", " ".join(sent_env_names(sdl)))
+            return
     key = os.environ.get("AKASH_CONSOLE_API_KEY") or dotenv.get("AKASH_CONSOLE_API_KEY")
     if not key:
         sys.exit("AKASH_CONSOLE_API_KEY is not set")
     if args.command == "status":
         status(key)
-        return
-    sdl = render_sdl(SDLS[args.sdl].read_text(), deploy_env(dotenv), image_tag=args.tag)
-    create(key, sdl) if args.command == "create" else update(key, sdl)
+    elif args.command == "create":
+        create(key, sdl)
+    else:
+        update(key, sdl)
 
 
 if __name__ == "__main__":
