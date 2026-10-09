@@ -2,8 +2,10 @@ import hashlib
 import hmac
 import json
 import time
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -12,10 +14,12 @@ from .config import Settings
 from .deps import get_ro_db, get_settings, get_store
 from .guards import GuardError, assert_read_only_sql, resolve_source_path
 from .models import Action
-from .semgrep_runner import run_semgrep
+from .semgrep_runner import RULES_DIR, run_semgrep
 from .store import IncidentStore
 
-REGISTRY_PREFIXES = ("p/", "r/")
+REGISTRY_PACK = re.compile(r"^p/[a-z0-9-]+$")
+MAX_ROWS = 200
+MAX_SOURCE_BYTES = 200_000
 
 
 def require_api_key(
@@ -38,7 +42,7 @@ def require_api_key(
     if presented is None and authorization and authorization.lower().startswith("bearer "):
         presented = authorization[7:].strip()
     expected = settings.toolbox_api_key
-    if not expected or not presented or not hmac.compare_digest(presented, expected):
+    if not expected or not presented or not hmac.compare_digest(presented.encode(), expected.encode()):
         raise HTTPException(status_code=401, detail="invalid API key")
 
 
@@ -48,6 +52,27 @@ def _session(x_guild_session: str | None = Header(default=None)) -> str:
 
 def _incident(x_incident_id: str | None = Header(default=None)) -> str:
     return x_incident_id or ""
+
+
+def _json_cell(value):
+    if isinstance(value, datetime):
+        value = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond // 1000:03d}Z"
+    return value
+
+
+def _semgrep_config(config: str | None) -> str | None:
+    if config is None:
+        return None
+    if config.startswith("-"):
+        raise GuardError(f"illegal semgrep config: {config!r}")
+    if REGISTRY_PACK.match(config):
+        return config
+    rules_dir = Path(RULES_DIR)
+    target = resolve_source_path(str(rules_dir), config)
+    if not target.is_file():
+        raise GuardError(f"semgrep config not found in toolbox rules: {config!r}")
+    return str(target)
 
 
 def args_hash(args: dict) -> str:
@@ -125,11 +150,21 @@ def query_events(
     session_id: str = Depends(_session),
     incident_id: str = Depends(_incident),
 ) -> dict:
-    """Run one read-only SQL statement through the read-only ClickHouse principal."""
+    """
+    Run one read-only SQL statement through the read-only ClickHouse principal.
+
+    Note:
+        `X-Guild-Session` and `X-Incident-Id` are caller-supplied and not verified.
+    """
     with record(store, "query_events", incident_id, body.model_dump(), session_id):
         sql = assert_read_only_sql(body.sql)
         result = ro_db.query(sql)
-        return {"columns": list(result.column_names), "rows": [list(r) for r in result.result_rows]}
+        rows = [[_json_cell(c) for c in r] for r in result.result_rows[:MAX_ROWS]]
+        return {
+            "columns": list(result.column_names),
+            "rows": rows,
+            "truncated": len(result.result_rows) > MAX_ROWS,
+        }
 
 
 @tools_router.post("/read_source")
@@ -143,9 +178,17 @@ def read_source(
     """Return a file from the production source tree."""
     with record(store, "read_source", incident_id, body.model_dump(), session_id):
         target = resolve_source_path(settings.production_source_root, body.path)
+        if "node_modules" in target.parts:
+            raise GuardError("node_modules is not readable")
         if not target.is_file():
             raise HTTPException(status_code=404, detail="file not found")
-        return {"path": body.path, "content": target.read_text(encoding="utf-8", errors="replace")}
+        with target.open("rb") as handle:
+            data = handle.read(MAX_SOURCE_BYTES + 1)
+        return {
+            "path": body.path,
+            "content": data[:MAX_SOURCE_BYTES].decode("utf-8", errors="replace"),
+            "truncated": len(data) > MAX_SOURCE_BYTES,
+        }
 
 
 @tools_router.post("/semgrep_scan")
@@ -159,13 +202,12 @@ def semgrep_scan(
     """Run Semgrep over the production source tree and return the findings."""
     with record(store, "semgrep_scan", incident_id, body.model_dump(), session_id):
         root = settings.production_source_root
-        if body.config and not body.config.startswith(REGISTRY_PREFIXES):
-            if "://" in body.config or body.config == "auto":
-                raise GuardError(f"illegal semgrep config: {body.config!r}")
-            resolve_source_path(root, body.config)
+        config = _semgrep_config(body.config)
         for path in body.paths or []:
+            if path.startswith("-"):
+                raise GuardError(f"illegal path: {path!r}")
             resolve_source_path(root, path)
         try:
-            return run_semgrep(body.config, body.paths, cwd=root)
+            return run_semgrep(config, body.paths, cwd=root)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
