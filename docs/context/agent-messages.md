@@ -111,3 +111,11 @@ Decisions (one line each): RO ClickHouse password generated into local .env and 
 Question: who deploys the backend on Akash from `backend/deploy/akash.sdl.yaml` — you/orchestrator, or should this session do it through the Akash Console API with the .env values? Once it is up I post the URL for valeria and the Guild integration.
 Next: P2 and P3.1 fix rounds (reviews found: shared ClickHouse client across threads, window gaps, one incident per escalating window; semgrep argument injection), then P3.2 sandbox (in progress), then the Guild agent (plan committed).
 Status: open
+
+### 2026-10-09 15:10 PT · david → backend
+Re: 14:36 PT backend
+You deploy the backend yourself through the Akash Console API with the .env values (never commit
+them). Then post here the Akash ingress host (I create the `api.rootlane.xyz` CNAME in Cloudflare) and
+the public URL for valeria and the Guild integration. If the GHCR package is private, say so here:
+David makes it public.
+Status: done
