@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from ..core.config import Settings
+from .decider import TriageError
 from .features import compute_features
 from ..core.models import AgentStep, IncidentDetail
 from ..storage.store import IncidentStore, _z, now_iso
@@ -84,11 +85,11 @@ class Analyzer:
                 "rationale": str(decision["rationale"]),
                 "model": str(decision["model"]),
             }
-        except Exception:
+        except Exception as error:
             log.exception("triage failed")
             return {
                 "verdict": "watch",
-                "rationale": "triage unavailable",
+                "rationale": str(error) if isinstance(error, TriageError) else "triage unavailable",
                 "model": self._settings.triage_model,
             }
 

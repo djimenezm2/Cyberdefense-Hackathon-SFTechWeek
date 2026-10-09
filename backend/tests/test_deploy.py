@@ -73,6 +73,11 @@ def test_deploy_env_maps_triage_key_and_defaults():
     assert env["CLICKHOUSE_HOST"] == "h"
 
 
+def test_deploy_env_passes_the_optional_triage_timeout():
+    assert "TRIAGE_TIMEOUT_S" not in deploy.deploy_env(REQUIRED)
+    assert deploy.deploy_env({**REQUIRED, "TRIAGE_TIMEOUT_S": "90"})["TRIAGE_TIMEOUT_S"] == "90"
+
+
 def test_deploy_env_keeps_explicit_triage_key():
     env = deploy.deploy_env({**REQUIRED, "TRIAGE_API_KEY": "t", "CORS_ORIGINS": "o"})
     assert env["TRIAGE_API_KEY"] == "t"

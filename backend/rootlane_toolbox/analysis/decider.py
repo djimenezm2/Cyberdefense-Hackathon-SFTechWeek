@@ -15,6 +15,10 @@ _PROMPT = (
 _VERDICTS = ("ignore", "watch", "escalate")
 
 
+class TriageError(Exception):
+    """A triage call failed; the message is a short reason safe to store and show."""
+
+
 class Decider(Protocol):
     """Turns window features into a verdict; implementations are interchangeable."""
 
@@ -29,7 +33,7 @@ class AkashMLDecider:
         self._http = http or httpx.Client(
             base_url=settings.triage_base_url,
             headers={"Authorization": f"Bearer {settings.triage_api_key}"},
-            timeout=20,
+            timeout=settings.triage_timeout_s,
         )
 
     def decide(self, features: dict) -> dict:
@@ -40,29 +44,38 @@ class AkashMLDecider:
             features (dict): The output of `compute_features`.
 
         Returns:
-            dict: `verdict` (ignore|watch|escalate), `rationale` and `model`. An
-                unparseable or unknown verdict becomes `watch`.
+            dict: `verdict` (ignore|watch|escalate), `rationale` and `model`.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            TriageError: On a timeout, a connection failure, an HTTP error status, or a
+                reply with no or an unknown verdict. The message is the short reason.
         """
-        resp = self._http.post(
-            "/chat/completions",
-            json={
-                "model": self._settings.triage_model,
-                "messages": [
-                    {"role": "system", "content": _PROMPT},
-                    {"role": "user", "content": json.dumps(features)},
-                ],
-                "temperature": 0,
-            },
-        )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"] or ""
+        try:
+            resp = self._http.post(
+                "/chat/completions",
+                json={
+                    "model": self._settings.triage_model,
+                    "messages": [
+                        {"role": "system", "content": _PROMPT},
+                        {"role": "user", "content": json.dumps(features)},
+                    ],
+                    "temperature": 0,
+                },
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"] or ""
+        except httpx.TimeoutException as error:
+            raise TriageError("triage timed out") from error
+        except httpx.HTTPStatusError as error:
+            raise TriageError(f"triage http {error.response.status_code}") from error
+        except httpx.HTTPError as error:
+            raise TriageError("triage connection failed") from error
+        except (KeyError, IndexError, TypeError, ValueError) as error:
+            raise TriageError("triage returned no verdict") from error
         parsed = _first_json(content)
-        verdict = parsed.get("verdict", "watch")
+        verdict = parsed.get("verdict")
         if verdict not in _VERDICTS:
-            verdict = "watch"
+            raise TriageError("triage returned no verdict")
         return {
             "verdict": verdict,
             "rationale": str(parsed.get("rationale", "")),
