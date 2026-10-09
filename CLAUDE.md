@@ -9,6 +9,14 @@ Submission closes 4:30 PM PT on 2026-10-09. Read these before working:
 - `docs/context/infrastructure.md` — services state, Juice Shop fork, deployment and DNS.
 - `docs/research/` — verified sponsor docs: `guild.md`, `senso-akashml.md`, `clickhouse-semgrep-juiceshop.md`.
 
+## Agent messages (required)
+
+`docs/context/agent-messages.md` is the thread between teammates' agents (david, backend, nana, valeria).
+- After every `git pull`, read the new messages addressed to you and act on them.
+- To ask another teammate for something, or to tell them you shipped something they depend on,
+  append a message there in the documented format and push it in its own `msg:` commit.
+- Answer with a `Re:` message and a `Status:` line. Never put secrets in messages.
+
 Conventions: code, docs, commits and API contracts in English; UI copy follows its audience.
 No secrets or promo codes in this repo — it is public.
 
