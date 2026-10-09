@@ -1,6 +1,6 @@
-# Security incident agent — design
+# Rootlane — design
 
-Working name pending. From production evidence to a reproduced incident and a verified fix.
+From production evidence to a reproduced incident and a verified fix.
 
 Date: 2026-10-09 · Event: Cyberdefense Hackathon #SFTechWeek · Submission: 4:30 PM PT
 
