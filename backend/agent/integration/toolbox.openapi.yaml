@@ -3,30 +3,29 @@ info: {title: Rootlane toolbox, version: 1.0.0}
 components:
   parameters:
     session: {name: X-Guild-Session, in: header, required: false, schema: {type: string}}
-    incident: {name: X-Incident-Id, in: header, required: false, schema: {type: string}}
   responses:
-    ok: {description: Result, content: {application/json: {schema: {type: object}}}}
+    ok: {description: Result, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
 paths:
   /tools/query_events:
     post:
       operationId: query_events
       summary: Run one read-only SELECT on ClickHouse (max 200 rows, 5 s)
-      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [sql], properties: {sql: {type: string}}}}}}
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [sql], properties: {sql: {type: string}, incident_id: {type: string}}}}}}
       responses: {'200': {$ref: '#/components/responses/ok'}}
   /tools/read_source:
     post:
       operationId: read_source
       summary: Read one repo-relative file from production source
-      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [path], properties: {path: {type: string}}}}}}
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [path], properties: {path: {type: string}, incident_id: {type: string}}}}}}
       responses: {'200': {$ref: '#/components/responses/ok'}}
   /tools/semgrep_scan:
     post:
       operationId: semgrep_scan
       summary: Run Semgrep on production source
-      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
-      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {config: {type: string}, paths: {type: array, items: {type: string}}}}}}}
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {config: {type: string}, paths: {type: array, items: {type: string}}, incident_id: {type: string}}}}}}
       responses: {'200': {$ref: '#/components/responses/ok'}}
   /tools/reproduce:
     post:
