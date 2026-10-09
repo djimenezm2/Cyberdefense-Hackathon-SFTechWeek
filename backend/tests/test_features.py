@@ -64,5 +64,26 @@ def test_new_principal_looks_back_over_earlier_requests_within_a_day():
 def test_feature_rows_are_capped_at_the_busiest_twenty():
     seen, SpyDB = _sqls()
     compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
-    assert len(seen) == 2
-    assert all("ORDER BY requests DESC LIMIT 20" in q for q in seen)
+    assert len(seen) == 3
+    assert all("LIMIT 20" in q for q in seen)
+
+
+def test_unauthenticated_principals_rule_feature_and_parameters():
+    seen = []
+
+    class SpyDB(FakeDB):
+        def query(self, sql, parameters=None):
+            seen.append((sql, parameters))
+            return super().query(sql, parameters)
+
+    db = SpyDB(responses={"login_ts": [["p9", "10.0.0.9"]]})
+    f = compute_features(db, "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
+    assert f["unauthenticated_principals"] == [{"principal_id": "p9", "ip": "10.0.0.9"}]
+    sql, params = next(q for q in seen if "login_ts" in q[0])
+    assert "auth_outcome = 'login_success'" in sql and "LIMIT 20" in sql
+    assert "status >= 200 AND status < 300" in sql
+    assert params == {
+        "start": "2026-10-09 21:00:30.000",
+        "end": "2026-10-09 21:00:40.000",
+        "lookback": "2026-10-08 21:00:30.000",
+    }

@@ -212,3 +212,30 @@ def test_escalate_while_an_incident_is_open_opens_no_new_one():
     assert broker.published[0][1]["verdict"] == "escalate"
     assert "incidents" not in db.inserted
     assert a.guild.calls == []
+
+
+RULE_HIT = {**BUSY, "login_ts": [["p9", "10.0.0.9"]]}
+RULE = "Rule: authenticated responses for a principal with no prior login from that client."
+
+
+def test_rule_hit_escalates_even_when_the_decider_says_ignore():
+    a, db, broker, _ = _analyzer("ignore", "gs_1", responses=RULE_HIT)
+    a.run_once(now=NOW)
+    row = db.inserted["analyzer_windows"][0]
+    assert row[2] == "escalate" and row[4] == f"{RULE} r"
+    assert broker.published[0][1]["verdict"] == "escalate"
+    assert db.inserted["incidents"]
+
+
+def test_rule_hit_with_a_failing_decider_uses_the_rule_sentence_alone():
+    a, db, _, _ = _analyzer("x", None, responses=RULE_HIT, decider=BoomDecider())
+    a.run_once(now=NOW)
+    row = db.inserted["analyzer_windows"][0]
+    assert row[2] == "escalate" and row[4] == RULE
+    assert db.inserted["incidents"]
+
+
+def test_no_rule_hit_keeps_the_decider_verdict():
+    a, db, _, _ = _analyzer("ignore", None)
+    a.run_once(now=NOW)
+    assert db.inserted["analyzer_windows"][0][2] == "ignore"
