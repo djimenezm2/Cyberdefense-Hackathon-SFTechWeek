@@ -12,10 +12,12 @@ services:
         set -e;
         apt-get update && apt-get install -y --no-install-recommends git ca-certificates;
         pip install --no-cache-dir uv;
-        rm -rf /app/repo && git clone --depth 1 https://github.com/djimenezm2/Cyberdefense-Hackathon-SFTechWeek /app/repo;
-        cd /app/repo/backend && uv sync --frozen --no-dev;
-        exec uv run --no-dev uvicorn rootlane_toolbox.app:create_app --factory --host 0.0.0.0 --port 8000
+        rm -rf /app/repo && git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/djimenezm2/Cyberdefense-Hackathon-SFTechWeek /app/repo;
+        cd /app/repo/backend && uv sync --frozen;
+        export PATH=/app/repo/backend/.venv/bin:$PATH;
+        exec /app/repo/backend/.venv/bin/uvicorn rootlane_toolbox.app:create_app --factory --host 0.0.0.0 --port 8000
     env:
+      - PRODUCTION_SOURCE_ROOT=/app/repo/juiceshop/juice-shop
       - CLICKHOUSE_HOST=__SET_AT_DEPLOY__
       - CLICKHOUSE_USER=__SET_AT_DEPLOY__
       - CLICKHOUSE_PASSWORD=__SET_AT_DEPLOY__

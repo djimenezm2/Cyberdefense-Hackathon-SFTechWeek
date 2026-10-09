@@ -161,6 +161,15 @@ def test_bootstrap_sdl_renders_from_full_env():
     assert "api.rootlane.xyz" in out
 
 
+def test_bootstrap_sdl_ships_juice_shop_source_and_semgrep():
+    out = deploy.render_sdl(deploy.SDLS["bootstrap"].read_text(), deploy.deploy_env(REQUIRED))
+    assert "git clone --depth 1 --recurse-submodules --shallow-submodules" in out
+    assert "export PATH=/app/repo/backend/.venv/bin:$PATH" in out
+    assert "exec /app/repo/backend/.venv/bin/uvicorn rootlane_toolbox.app:create_app --factory" in out
+    assert "--no-dev" not in out
+    assert "- PRODUCTION_SOURCE_ROOT=/app/repo/juiceshop/juice-shop" in out
+
+
 def test_cheapest_bid_picks_lowest_open_price():
     bids = [
         {"bid": {"id": {"provider": "p1"}, "state": "open", "price": {"amount": "5.0"}}},
