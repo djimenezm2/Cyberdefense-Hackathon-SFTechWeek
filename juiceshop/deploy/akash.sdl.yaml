@@ -1,0 +1,54 @@
+# Akash SDL for the Rootlane `juiceshop` app → juiceshop.rootlane.xyz
+#
+# Deploy with the image built by .github/workflows/juiceshop-image.yml. The GHCR package
+# must be PUBLIC (set once after the first build) so the provider can pull it anonymously.
+#
+# INGEST_TOKEN is a secret: do NOT commit its value. Fill it from your local .env at deploy
+# time (e.g. with `envsubst`) or paste it in the Akash Console env editor — leave the
+# placeholder here. Everything else is safe to keep in the public repo.
+#
+# Deploy via Akash Console (Import SDL) or the Console API. After the lease is up, take the
+# provider ingress host and post it in docs/context/agent-messages.md so the
+# juiceshop.rootlane.xyz CNAME can be created.
+
+---
+version: "2.0"
+
+services:
+  juiceshop:
+    image: ghcr.io/djimenezm2/rootlane-juiceshop:latest
+    env:
+      # Where the telemetry middleware posts events (the toolbox). Safe to commit.
+      - INGEST_URL=https://api.rootlane.xyz/internal/events
+      # Secret — replace at deploy time, never commit the real value.
+      - INGEST_TOKEN=__FILL_FROM_ENV__
+    expose:
+      - port: 3000          # Juice Shop listens on 3000
+        as: 80              # served as HTTP 80
+        to:
+          - global: true
+        accept:
+          - juiceshop.rootlane.xyz
+
+profiles:
+  compute:
+    juiceshop:
+      resources:
+        cpu:
+          units: 1.0
+        memory:
+          size: 2Gi
+        storage:
+          size: 2Gi
+  placement:
+    dcloud:
+      pricing:
+        juiceshop:
+          denom: uakt
+          amount: 10000
+
+deployment:
+  juiceshop:
+    dcloud:
+      profile: juiceshop
+      count: 1
