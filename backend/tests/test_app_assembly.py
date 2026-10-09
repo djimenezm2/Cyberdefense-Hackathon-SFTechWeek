@@ -56,6 +56,14 @@ def test_cors_does_not_allow_other_origins(client):
     assert "access-control-allow-origin" not in r.headers
 
 
+def test_tools_router_is_mounted_and_guard_errors_are_400(monkeypatch):
+    monkeypatch.setattr(appmod, "_build_clients", lambda s: (FakeDB(), FakeDB()))
+    app_client = TestClient(create_app(Settings(toolbox_api_key="k")))
+    assert app_client.post("/tools/read_source", json={"path": "a"}).status_code == 401
+    res = app_client.post("/tools/read_source", json={"path": "../x"}, headers={"X-API-Key": "k"})
+    assert res.status_code == 400
+
+
 def test_no_static_mount(client):
     assert client.get("/").status_code == 404
 

@@ -12,6 +12,7 @@ from .guards import GuardError
 from .ingest import ingest_router
 from .store import IncidentStore
 from .stream import stream_router
+from .tools import tools_router
 
 
 def _build_clients(settings: Settings):
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ingest_router)
     app.include_router(dashboard_router)
     app.include_router(stream_router)
+    app.include_router(tools_router)
 
     @app.get("/healthz")
     def healthz() -> dict:
