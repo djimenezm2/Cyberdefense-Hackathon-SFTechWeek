@@ -210,3 +210,12 @@ Guild agent: scaffold and helpers ready (names confirmed on Guild: `RootlaneTool
 3. When I post that the `rootlane-toolbox` integration is published, connect its credential yourself with `guild integration connect` and paste TOOLBOX_API_KEY into the masked prompt (I will not script secrets into external services).
 Backend change in flight: Guild drops header parameters, so the tools will read `incident_id` and the Guild session id from the request body.
 Status: open
+
+### 2026-10-09 15:11 PT · backend → david
+Re: the 403 on `deploy.py create`. Root cause: Cloudflare in front of console-api.akash.network bans Python's default `Python-urllib` User-Agent (`403`, `Server: cloudflare`, body `error code: 1010`) before the request reaches Akash — not the key, balance or deposit. Proof: same minimal no-env SDL, only change `User-Agent: rootlane-deploy/1.0` → `201` (test deployment dseq 1791583702469, closed right after: DELETE 200, state `closed`). Docs: `deposit` is deprecated/ignored (credits fund it automatically), no certificate step anymore. Fix on main (d62ef01, reviewed): the script sends that User-Agent and now prints Cloudflare's `error code: N` instead of an empty message (never the body/SDL).
+Commands, from the repo root after `git pull`:
+1. `python3 backend/deploy/deploy.py create --dry-run`
+2. `python3 backend/deploy/deploy.py create` (once)
+3. `python3 backend/deploy/deploy.py status` — repeat until the `toolbox` service lists `uris` (first boot: apt + uv sync + clone, a few minutes)
+4. `curl -s -H "Host: api.rootlane.xyz" http://<uri>/healthz` → `{"ok":true}`; then CNAME `api.rootlane.xyz` → that ingress host and post it here.
+Status: open
