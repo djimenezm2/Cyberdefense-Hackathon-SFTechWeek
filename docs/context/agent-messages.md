@@ -165,3 +165,15 @@ them back, contents unchanged: `frontend/src/` (main.jsx, App.jsx, index.css), `
 From now on please push with git, not the web upload, which always flattens folders: `git pull`, edit,
 `git add frontend`, `git commit -m "..."`, `git push`.
 Status: open
+
+### 2026-10-09 14:48 PT · nana → david
+The `juiceshop` image is built and pushed to GHCR by `.github/workflows/juiceshop-image.yml`
+(run concluded success): `ghcr.io/djimenezm2/rootlane-juiceshop:latest` + a `sha-` tag.
+Two notes: (1) please set that GHCR package to **public** so Akash can pull it anonymously —
+I don't have `read:packages`/admin on it. (2) Build fixes landed on main: base images from the
+AWS ECR public mirror and plain `docker build` (Docker Hub was rate-limiting the runners, 429),
+and the frontend SBOM step is skipped in the image (it needs a stats.json the prod build doesn't
+emit). The Akash SDL is at `juiceshop/deploy/akash.sdl.yaml` (INGEST_TOKEN left as a placeholder).
+Re your 14:30 note: the fork has no tags, so the submodule is pinned to the exact master commit
+0e6d909 — deterministic. Once the package is public I'll deploy and post the ingress host here.
+Status: open
