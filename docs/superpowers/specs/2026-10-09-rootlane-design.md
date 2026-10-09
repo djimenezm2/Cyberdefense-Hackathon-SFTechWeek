@@ -108,3 +108,16 @@ CNAMEs under `rootlane.xyz`. Secrets as Akash env vars. `ui` on Akash or Vercel,
 - DNS: move `rootlane.xyz` nameservers from Porkbun to a free Cloudflare zone (proxy + HTTPS in front of Akash).
 - Accounts: ClickHouse (`SIGNUP100`, new email), Guild, Senso, AkashML, Akash Console, Anthropic key for Guild.
 - Confirm with `guild agent capabilities` the generated tool names and whether a posted event answers `task.ui.prompt`.
+
+## Decisions (2026-10-09, supersede earlier sections where they differ)
+
+- **Stack.** `toolbox` in Python 3.12 + FastAPI, managed with `uv`. `agent` in TypeScript on Guild (the only runtime Guild hosts). Dashboard in Vite + React, built to `ui/dist` and served by the toolbox.
+- **Models.**
+  - Investigating agent: Claude through Guild's managed LLM access (account has a 50M Guild-token balance; no own provider key needed). Model chosen in the agent's `llmPreferences`, Claude Sonnet tier.
+  - Continuous analysis: AkashML open model (`zai-org/GLM-5.3` via the OpenAI-compatible API at `https://api.akashml.com/v1`). Model and base URL come from env (`TRIAGE_BASE_URL`, `TRIAGE_MODEL`, `TRIAGE_API_KEY`) so it can switch to another provider without code changes.
+- **Continuous analysis instead of fixed alerts.** Every `ANALYZE_INTERVAL_S` the toolbox computes generic behavioural features over a sliding window in ClickHouse (per principal and per IP) and sends the summary to the triage model, which answers `ignore`, `watch` or `escalate` with a rationale. Only `escalate` opens an incident and starts a Guild session. Every verdict is stored and shown on the dashboard.
+- **Demo scenarios.** Three weaknesses already present in Juice Shop — one identity, one injection, one authorization. Nothing in the analyzer or the agent is specific to them.
+- **Telemetry never stores passwords, tokens or request bodies**, only derived fields.
+- **Image build.** GitHub Actions builds the Docker image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane`); no local Docker needed.
+- **Dashboard API** is fixed by `docs/ui/dashboard-contract.md` and `ui/fixtures/`.
+- **Guild trigger key** can only be created in the web UI after the agent is published to workspace `djimenezm2/hackaton`.
