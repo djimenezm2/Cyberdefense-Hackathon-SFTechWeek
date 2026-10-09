@@ -2,10 +2,10 @@
 title: Rootlane — GitHub, CI and deployment
 ---
 flowchart TB
-  subgraph Team["Team and their agents"]
-    david["David<br>orchestrator + backend sessions"]
-    nana["Nana<br>Juice Shop agent"]
-    valeria["Valeria<br>dashboard agent"]
+  subgraph Team["Developers and their coding agents"]
+    devbackend["Backend + orchestration"]
+    devtarget["Target app"]
+    devdash["Dashboard"]
   end
   subgraph Repo["Team repo (public)"]
     main["main branch"]
@@ -23,14 +23,14 @@ flowchart TB
   cf["Cloudflare DNS + HTTPS"]
   envf["Local .env per teammate<br>secrets never in git"]
   agentfix["Rootlane agent: approved fix"]
-  david -- "push / msg" --> main
-  nana -- "PR / msg" --> main
-  valeria -- "push / msg" --> main
+  devbackend -- "push / msg" --> main
+  devtarget -- "PR / msg" --> main
+  devdash -- "push / msg" --> main
   main --- folders
   main --- msgs
-  msgs -. "monitor on origin/main" .-> david
-  msgs -. "monitor" .-> nana
-  msgs -. "monitor" .-> valeria
+  msgs -. "monitor on origin/main" .-> devbackend
+  msgs -. "monitor" .-> devtarget
+  msgs -. "monitor" .-> devdash
   folders -- "submodule" --> fork
   main -- "on push" --> wbe --> ghcr
   main -- "on push" --> wjs --> ghcr
@@ -46,7 +46,7 @@ flowchart TB
   classDef ci fill:#d5e8d4,stroke:#82b366,color:#000000
   classDef run fill:#f5f5f5,stroke:#666666,color:#000000
   classDef secret fill:#f8cecc,stroke:#b85450,color:#000000
-  class david,nana,valeria person
+  class devbackend,devtarget,devdash person
   class main,folders,msgs,fork repo
   class wbe,wjs,ghcr ci
   class akash,vercel,cf,agentfix run
