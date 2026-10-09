@@ -185,6 +185,27 @@ def test_stop_process_ends_a_spawned_process(tmp_path):
     assert proc.poll() is not None and log.read_text() == "started\n"
 
 
+def test_missing_node_is_a_sandbox_error_and_cleans_up(tmp_path):
+    f = Fakes(tmp_path)
+
+    def spawn(args, *, cwd, env, log_path):
+        raise FileNotFoundError(2, "No such file or directory", "node")
+
+    f.spawn = spawn
+    with pytest.raises(SandboxError, match="replica could not start.*node"):
+        with f.builder().build(""):
+            pass
+    assert f.stopped == [] and _leftovers(f) == []
+
+
+def test_missing_source_root_is_a_sandbox_error_and_cleans_up(tmp_path):
+    f = Fakes(tmp_path)
+    with pytest.raises(SandboxError, match="replica could not start"):
+        with f.builder(production_source_root=str(tmp_path / "absent")).build(""):
+            pass
+    assert f.spawned == [] and _leftovers(f) == []
+
+
 def test_busy_port_is_refused_before_anything_starts(tmp_path):
     f = Fakes(tmp_path, port_free=False)
     with pytest.raises(SandboxError, match="port"):

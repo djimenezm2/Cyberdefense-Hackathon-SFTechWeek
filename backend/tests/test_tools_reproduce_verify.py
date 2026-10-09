@@ -186,6 +186,26 @@ def test_a_failed_verification_blocks_propose(env):
     assert [d["outcome"] for e, d in broker.events if e == "step"] == ["error"]
 
 
+def test_reproduce_refuses_a_non_ascii_header_value(env):
+    client, store, broker, sandbox, db = env
+    res = _reproduce(client, reproduction={**REPRO, "headers": {"X-Name": "café"}})
+    assert res.status_code == 400
+    assert sandbox.calls == [] and _audit(db)[0]["outcome"] == "refused"
+
+
+def test_an_unrunnable_replica_during_verify_is_502_and_clears_the_gate(env):
+    client, store, broker, sandbox, db = env
+    _reproduce(client)
+    sandbox.error = SandboxError("replica could not start: [Errno 2] No such file or directory: 'node'")
+    broker.events.clear()
+    res = _verify(client)
+    assert res.status_code == 502 and "could not start" in res.json()["detail"]
+    assert store.get("inc_01").last_verify == {"hash": diff_hash(DIFF), "passed": False}
+    steps = [d for e, d in broker.events if e == "step"]
+    assert [(s["kind"], s["outcome"]) for s in steps] == [("verify", "error")]
+    assert _audit(db)[-1]["outcome"] == "error"
+
+
 def test_a_diff_that_does_not_apply_is_422_and_clears_the_gate(env):
     client, store, broker, sandbox, db = env
     _reproduce(client)

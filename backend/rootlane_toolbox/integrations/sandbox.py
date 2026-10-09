@@ -38,6 +38,7 @@ DROPPED_HEADERS = {
 EXCERPT_CHARS = 500
 _TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 _UNSAFE_PATH = re.compile(r"[\s\\\x00-\x1f\x7f]")
+_HEADER_VALUE = re.compile(r"^[\t\x20-\x7e]*$")
 
 
 class Reproduction(BaseModel):
@@ -47,7 +48,8 @@ class Reproduction(BaseModel):
     Attributes:
         method (str): HTTP method, upper-cased.
         path (str): Origin-relative path with optional query, e.g. `/rest/basket/2?x=1`.
-        headers (dict[str, str]): Request headers; host and hop-by-hop headers are dropped.
+        headers (dict[str, str]): Request headers with printable ASCII values; host and
+            hop-by-hop headers are dropped.
         body (Any): None, a string sent as-is, or a JSON value.
         expected_blocked_status (int): The 4xx status that means the request was rejected.
     """
@@ -80,7 +82,7 @@ class Reproduction(BaseModel):
     def _headers(cls, value: dict[str, str]) -> dict[str, str]:
         kept = {}
         for name, header in value.items():
-            if not _TOKEN.match(name) or "\r" in header or "\n" in header:
+            if not _TOKEN.match(name) or not _HEADER_VALUE.match(header):
                 raise ValueError(f"illegal header: {name!r}")
             if name.lower() not in DROPPED_HEADERS:
                 kept[name] = header
@@ -339,19 +341,26 @@ class ReplicaBuilder:
 
         Raises:
             PatchError: If the diff does not apply or the server does not build.
-            SandboxError: If the port is taken, a step times out or the replica does not start.
+            SandboxError: If the port is taken, the copy or the process cannot be created, a step
+                times out or the replica does not start.
         """
         port = self._settings.sandbox_port
         if not self._port_free(port):
             raise SandboxError(f"sandbox port {port} is already in use")
-        tmp = tempfile.mkdtemp(prefix="rootlane-replica-", dir=self._workdir)
+        try:
+            tmp = tempfile.mkdtemp(prefix="rootlane-replica-", dir=self._workdir)
+        except OSError as exc:
+            raise SandboxError(f"replica could not start: {exc}") from exc
         proc = None
         try:
             src = os.path.join(tmp, "src")
             env = self._env(tmp)
-            self._prepare(src, diff, env)
             log_path = os.path.join(tmp, "replica.log")
-            proc = self._spawn(["node", "build/app.js"], cwd=src, env=env, log_path=log_path)
+            try:
+                self._prepare(src, diff, env)
+                proc = self._spawn(["node", "build/app.js"], cwd=src, env=env, log_path=log_path)
+            except OSError as exc:
+                raise SandboxError(f"replica could not start: {exc}") from exc
             self._wait_ready(proc, log_path)
             yield Replica(base_url=self.base_url, source_dir=src)
         finally:

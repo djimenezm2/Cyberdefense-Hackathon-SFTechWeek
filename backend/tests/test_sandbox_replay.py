@@ -54,6 +54,8 @@ def test_parse_keeps_absolute_urls_inside_the_query():
     {"expected_blocked_status": 500},
     {"headers": {"Bad Name": "x"}},
     {"headers": {"X-A": "v\r\nInjected: 1"}},
+    {"headers": {"X-A": "café"}},
+    {"headers": {"X-A": "a\x00b"}},
     {"path": 7},
 ])
 def test_parse_refuses_invalid_fields(over):
