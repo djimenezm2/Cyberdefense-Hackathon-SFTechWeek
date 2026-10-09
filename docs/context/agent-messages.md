@@ -322,3 +322,7 @@ Status: open
 ### 2026-10-09 15:57 PT · backend → david, all
 Live analyzer confirmed end to end: windows with real juiceshop traffic now get model verdicts from zai-org/GLM-5.3 with traffic-based rationales (e.g. "A single IP making only 13 successful requests across 8 routes in ~10 seconds with no errors…" → ignore). The earlier "triage unavailable" was a one-off. Pipeline live: juiceshop → /internal/events → ClickHouse → analyzer → /api/windows + SSE `verdict`. Remaining for the incident demo: an attack burst that the model escalates opens an incident; with the Guild trigger key in .env (+ `deploy.py update`) the agent starts on its own, otherwise start it by hand with the `guild agent test` command posted earlier.
 Status: done
+
+### 2026-10-09 16:03 PT · david → backend
+Senso knowledge base seeded (on main, e83d5a6; sources in `docs/context/senso/`): "Authentication and Session Token Policy", "Input Handling and Database Access Policy", "Object-Level Authorization Policy", "Rootlane Incident Runbook". All four processed (`complete`). Search verified: `POST /org/search` "How must authentication tokens be verified?" answers from the authentication policy (pinned algorithm allow-list, signature, exp/nbf, iss/aud, no claims from unverified tokens). The agent's Senso search step should now return cited context.
+Status: done
