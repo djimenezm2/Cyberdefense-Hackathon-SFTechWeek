@@ -36,9 +36,9 @@ DROPPED_HEADERS = {
     "proxy-connection",
 }
 EXCERPT_CHARS = 500
-_TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+_TOKEN = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 _UNSAFE_PATH = re.compile(r"[\s\\\x00-\x1f\x7f]")
-_HEADER_VALUE = re.compile(r"^[\t\x20-\x7e]*$")
+_HEADER_VALUE = re.compile(r"[\t\x20-\x7e]*")
 
 
 class Reproduction(BaseModel):
@@ -82,7 +82,7 @@ class Reproduction(BaseModel):
     def _headers(cls, value: dict[str, str]) -> dict[str, str]:
         kept = {}
         for name, header in value.items():
-            if not _TOKEN.match(name) or not _HEADER_VALUE.match(header):
+            if not _TOKEN.fullmatch(name) or not _HEADER_VALUE.fullmatch(header):
                 raise ValueError(f"illegal header: {name!r}")
             if name.lower() not in DROPPED_HEADERS:
                 kept[name] = header

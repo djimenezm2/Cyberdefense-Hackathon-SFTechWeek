@@ -186,9 +186,15 @@ def test_a_failed_verification_blocks_propose(env):
     assert [d["outcome"] for e, d in broker.events if e == "step"] == ["error"]
 
 
-def test_reproduce_refuses_a_non_ascii_header_value(env):
+@pytest.mark.parametrize("headers", [
+    {"X-Name": "café"},
+    {"X-Name": "a\n"},
+    {"X-Name": "a\r"},
+    {"X\n": "a"},
+])
+def test_reproduce_refuses_an_illegal_header(env, headers):
     client, store, broker, sandbox, db = env
-    res = _reproduce(client, reproduction={**REPRO, "headers": {"X-Name": "café"}})
+    res = _reproduce(client, reproduction={**REPRO, "headers": headers})
     assert res.status_code == 400
     assert sandbox.calls == [] and _audit(db)[0]["outcome"] == "refused"
 
