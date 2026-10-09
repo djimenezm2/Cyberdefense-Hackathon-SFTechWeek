@@ -2,7 +2,7 @@ version: "2.0"
 
 services:
   toolbox:
-    image: ghcr.io/djimenezm2/rootlane-toolbox:latest
+    image: ghcr.io/djimenezm2/rootlane-backend:latest
     env:
       - CLICKHOUSE_HOST=__SET_AT_DEPLOY__
       - CLICKHOUSE_USER=__SET_AT_DEPLOY__

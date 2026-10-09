@@ -9,7 +9,7 @@ from rootlane_toolbox.store import IncidentStore, now_iso
 from tests.conftest import FakeDB
 
 FIXTURE = json.loads(
-    (Path(__file__).resolve().parents[2] / "ui" / "fixtures" / "stream-events.json").read_text()
+    (Path(__file__).resolve().parents[2] / "frontend" / "fixtures" / "stream-events.json").read_text()
 )
 SHAPES = {item["event"]: item["data"] for item in FIXTURE}
 

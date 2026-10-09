@@ -1,16 +1,16 @@
-# Rootlane `toolbox` app image: FastAPI API + Semgrep CLI + Node 22 + the Juice Shop fork
+# Rootlane `backend` app image: FastAPI API + Semgrep CLI + Node 22 + the Juice Shop fork
 # source for ephemeral replicas. Deployed on Akash at api.rootlane.xyz.
 #
-# Build context is the REPO ROOT (so the target/juice-shop submodule is in scope). Built by
-# GitHub Actions and pushed to ghcr.io/djimenezm2/rootlane-toolbox.
-#   docker build -f toolbox/Dockerfile -t rootlane-toolbox .
+# Build context is the REPO ROOT (so the juiceshop/juice-shop submodule is in scope). Built by
+# GitHub Actions and pushed to ghcr.io/djimenezm2/rootlane-backend.
+#   docker build -f backend/Dockerfile -t rootlane-backend .
 #
-# All configuration comes from env at runtime (see deploy/toolbox.sdl.yaml); no secrets in the image.
+# All configuration comes from env at runtime (see backend/deploy/akash.sdl.yaml); no secrets in the image.
 
 # ---- juiceshop-deps: Juice Shop fork source with its npm dependencies installed ----
 FROM node:22-bookworm AS juiceshop-deps
 WORKDIR /juice-shop
-COPY target/juice-shop/ ./
+COPY juiceshop/juice-shop/ ./
 RUN npm ci --no-audit --no-fund
 
 # ---- runtime ----
@@ -42,9 +42,9 @@ RUN useradd --create-home --uid 10001 rootlane
 WORKDIR /app
 
 # Dependencies first (cached until the lockfile changes), then the project itself.
-COPY toolbox/pyproject.toml toolbox/uv.lock ./
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
-COPY toolbox/ ./
+COPY backend/ ./
 RUN uv sync --frozen --no-dev --no-cache
 
 # Juice Shop fork source, writable by the runtime user so replicas can be built from it.

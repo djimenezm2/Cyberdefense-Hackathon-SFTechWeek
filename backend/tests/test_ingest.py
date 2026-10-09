@@ -11,7 +11,7 @@ def _settings(token="ingest-secret"):
 
 
 def _event(**kw):
-    """An event exactly as target/telemetry/telemetry.ts builds it."""
+    """An event exactly as juiceshop/telemetry/telemetry.ts builds it."""
     base = {
         "ts": "2026-10-09T21:00:31.120Z",
         "trace_id": "a1f3",

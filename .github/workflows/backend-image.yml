@@ -1,13 +1,13 @@
-name: toolbox-image
+name: backend-image
 
 on:
   push:
     branches: [main]
     paths:
-      - "toolbox/**"
-      - "target/juice-shop"
+      - "backend/**"
+      - "juiceshop/juice-shop"
       - ".dockerignore"
-      - ".github/workflows/toolbox-image.yml"
+      - ".github/workflows/backend-image.yml"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/djimenezm2/rootlane-toolbox
+  IMAGE: ghcr.io/djimenezm2/rootlane-backend
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          file: toolbox/Dockerfile
+          file: backend/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ steps.vars.outputs.sha }}

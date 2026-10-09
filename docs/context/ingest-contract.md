@@ -1,8 +1,8 @@
 # Ingest contract — `POST /internal/events`
 
-The toolbox accepts telemetry from the Juice Shop middleware
-(`target/telemetry/telemetry.ts`, wired by `deploy/patches/server-telemetry.patch`).
-Implementation: `toolbox/rootlane_toolbox/ingest.py`.
+The backend (`backend/`) accepts telemetry from the Juice Shop middleware
+(`juiceshop/telemetry/telemetry.ts`, wired by `juiceshop/patches/server-telemetry.patch`).
+Implementation: `backend/rootlane_toolbox/ingest.py`.
 
 ## Endpoint and auth
 

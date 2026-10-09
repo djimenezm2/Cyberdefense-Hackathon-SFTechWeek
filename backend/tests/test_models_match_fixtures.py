@@ -5,7 +5,7 @@ import pytest
 
 from rootlane_toolbox import models
 
-FIX = Path(__file__).resolve().parents[2] / "ui" / "fixtures"
+FIX = Path(__file__).resolve().parents[2] / "frontend" / "fixtures"
 
 
 def _load(name):
