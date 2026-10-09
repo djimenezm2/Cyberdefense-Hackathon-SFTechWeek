@@ -21,10 +21,16 @@ COPY juiceshop/telemetry/telemetry.ts ./lib/telemetry.ts
 COPY juiceshop/patches/server-telemetry.patch /tmp/server-telemetry.patch
 RUN patch -p1 < /tmp/server-telemetry.patch
 
-# Full install (dev deps needed to compile) then build frontend + server (-> build/app.js,
-# which includes build/lib/telemetry.js compiled from our overlay).
+# The frontend's `sbom` step needs a dist/frontend/stats.json the production build does
+# not emit, so it fails the install-time build. The SBOM is not needed to run the shop;
+# neutralize it so `npm install`'s postinstall (which builds the frontend) succeeds.
+RUN sed -i 's#"sbom": "cyclonedx-esbuild[^"]*"#"sbom": "echo skip-sbom"#' frontend/package.json
+
+# Install (dev deps needed to compile). The postinstall builds the frontend here.
 RUN npm install --no-audit --no-fund
-RUN npm run build
+# Compile the server explicitly (incl. build/lib/telemetry.js from our overlay). Unlike the
+# postinstall's `build:server || cd .`, this fails loudly if the server does not compile.
+RUN npm run build:server
 # Drop dev dependencies for a lean runtime copy.
 RUN npm prune --omit=dev && mkdir -p logs
 
