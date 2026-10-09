@@ -211,7 +211,7 @@ def test_semgrep_scan_refuses_flag_like_paths(env, bad):
     assert _audit(db)[0]["outcome"] == "refused"
 
 
-@pytest.mark.parametrize("bad", ["--autofix", "p/a/b", "P/default", "p/x_y", "../x", "routes/login.ts", "auto", "/etc/x"])
+@pytest.mark.parametrize("bad", ["--autofix", "p/a/b", "P/default", "p/default\n", "p/x_y", "../x", "routes/login.ts", "auto", "/etc/x"])
 def test_semgrep_scan_refuses_disallowed_config(env, bad, monkeypatch):
     client, _, _ = env
     monkeypatch.setattr(tools, "run_semgrep", lambda *a, **k: {"findings": 0, "results": []})
@@ -344,7 +344,7 @@ def test_unknown_session_identity_text(env):
 
 
 @pytest.mark.parametrize("field", ["incident_id", "guild_session_id"])
-@pytest.mark.parametrize("bad", ["a b", "x" * 65, "a/b", "a;drop", "\u00e9"])
+@pytest.mark.parametrize("bad", ["a b", "x" * 65, "a/b", "a;drop", "\u00e9", "ok\n", "ok\r"])
 def test_bad_ids_are_400_and_refused(env, field, bad):
     client, db, _ = env
     res = client.post("/tools/read_source", json={"path": "routes/login.ts", field: bad}, headers=NOKEY)

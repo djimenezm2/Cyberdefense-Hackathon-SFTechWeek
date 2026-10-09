@@ -19,7 +19,7 @@ from ..integrations.sandbox import PatchError, SandboxBusy, SandboxError, parse_
 from ..integrations.semgrep_runner import RULES_DIR, run_semgrep
 from ..storage.store import IncidentStore, now_iso
 
-REGISTRY_PACK = re.compile(r"^p/[a-z0-9-]+$")
+REGISTRY_PACK = re.compile(r"p/[a-z0-9-]+")
 MAX_ROWS = 200
 MAX_SOURCE_BYTES = 200_000
 
@@ -48,7 +48,7 @@ def require_api_key(
         raise HTTPException(status_code=401, detail="invalid API key")
 
 
-ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+ID_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,64}")
 
 
 def _session(x_guild_session: str | None = Header(default=None)) -> str:
@@ -75,7 +75,7 @@ def _semgrep_config(config: str | None) -> str | None:
         return None
     if config.startswith("-"):
         raise GuardError(f"illegal semgrep config: {config!r}")
-    if REGISTRY_PACK.match(config):
+    if REGISTRY_PACK.fullmatch(config):
         return config
     rules_dir = Path(RULES_DIR)
     target = resolve_source_path(str(rules_dir), config)
@@ -117,9 +117,9 @@ def record(
     outcome = "ok"
     valid_incident, valid_session = "", "unknown"
     try:
-        if incident_id and not ID_PATTERN.match(incident_id):
+        if incident_id and not ID_PATTERN.fullmatch(incident_id):
             raise GuardError("illegal incident_id")
-        if session_id and not ID_PATTERN.match(session_id):
+        if session_id and not ID_PATTERN.fullmatch(session_id):
             raise GuardError("illegal guild_session_id")
         valid_incident, valid_session = incident_id, session_id or "unknown"
         yield
