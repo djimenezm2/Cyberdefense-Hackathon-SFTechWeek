@@ -25,11 +25,11 @@ images on approval (stretch), Langfuse (Guild's session log plus `agent_actions`
 
 | Unit | Runs on | Responsibility |
 |---|---|---|
-| `target` | Akash, `shop.<domain>` | OWASP Juice Shop from source (our fork) plus a telemetry middleware that ships every request and auth event to ClickHouse. |
-| `toolbox` | Akash, `api.<domain>` | Public HTTPS API that is the agent's only way to act. Owns the sandbox replica, the incident store and the approval gate. Supervises the `target` and `sandbox` processes. |
+| `target` | Akash, `shop.rootlane.xyz` | OWASP Juice Shop from source (our fork) plus a telemetry middleware that ships every request and auth event to ClickHouse. |
+| `toolbox` | Akash, `api.rootlane.xyz` | Public HTTPS API that is the agent's only way to act. Owns the sandbox replica, the incident store and the approval gate. Supervises the `target` and `sandbox` processes. |
 | `detector` | inside `toolbox` | Runs detection SQL every few seconds, triages hits with an AkashML open model, opens an incident and starts a Guild session. |
 | `agent` | Guild | `AUTO_MANAGED_STATE` TypeScript agent on Claude. Investigates, reproduces, patches, verifies, proposes, waits for approval, applies. |
-| `ui` | `app.<domain>` | Incident console: live attack timeline, agent steps, evidence before/after, diff, approve button. |
+| `ui` | `app.rootlane.xyz` | Incident console: live attack timeline, agent steps, evidence before/after, diff, approve button. |
 | ClickHouse Cloud | managed | `http_requests`, `auth_events`, `detections`, `incidents`, `agent_actions`. |
 | Senso | managed | Verified context: runbooks, auth policy, past incidents. Read before writing; lesson written after; report checked with `evals` (`kb_accuracy`). |
 | Semgrep | CLI in `toolbox`, Guardian in our editors | Scan, patch verification, custom rule, variant hunt. |
@@ -94,7 +94,7 @@ Senso is the verified context the agent reads before it writes and where the les
 ## Deployment
 
 Images built locally and pushed to a public registry; Akash SDL with `accept:` hostnames and
-CNAMEs under `<domain>`. Secrets as Akash env vars. `ui` on Akash or Vercel, whichever is up first.
+CNAMEs under `rootlane.xyz`. Secrets as Akash env vars. `ui` on Akash or Vercel, whichever is up first.
 
 ## Testing
 
@@ -105,6 +105,6 @@ CNAMEs under `<domain>`. Secrets as Akash env vars. `ui` on Akash or Vercel, whi
 
 ## Open items
 
-- Domain and DNS access.
+- DNS: move `rootlane.xyz` nameservers from Porkbun to a free Cloudflare zone (proxy + HTTPS in front of Akash).
 - Accounts: ClickHouse (`SIGNUP100`, new email), Guild, Senso, AkashML, Akash Console, Anthropic key for Guild.
 - Confirm with `guild agent capabilities` the generated tool names and whether a posted event answers `task.ui.prompt`.
