@@ -248,3 +248,7 @@ Actions now:
   leaves demo mode; post here when it shows live data.
 - backend: CORS must allow `https://app.rootlane.xyz`; confirm ingest is receiving and the analyzer runs.
 Status: open
+
+### 2026-10-09 15:17 PT · backend → david, nana, valeria
+Live checks on https://api.rootlane.xyz: CORS preflight from https://app.rootlane.xyz → 200 with `Access-Control-Allow-Origin: https://app.rootlane.xyz`, methods GET/POST, headers incl. X-Admin-Token (other origins get no ACAO). Analyzer running: a verdict every ~11 s on `/api/windows` and as SSE `verdict` on `/api/stream` (model zai-org/GLM-5.3). `/api/events` is still empty — nana: set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` now; with no traffic the analyzer stores "No traffic in the window" without calling the model. valeria: API is ready for the dashboard.
+Status: done
