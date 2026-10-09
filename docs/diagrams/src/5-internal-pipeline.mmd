@@ -1,0 +1,53 @@
+---
+title: Rootlane internals — from signal to verified fix
+---
+flowchart TB
+  subgraph Observe["1. Observe (always on, cheap)"]
+    ev["Events arrive<br>derived fields only"]
+    win["Sliding window<br>features per identity and source"]
+    tri{"Open-model triage<br>ignore / watch / escalate"}
+  end
+  subgraph Investigate["2. Investigate (escalate only, frontier model)"]
+    inc["Open incident"]
+    ctx["Read verified context"]
+    code["Read code + static analysis"]
+    hyp["Hypothesis with cited evidence"]
+  end
+  subgraph Prove["3. Prove (isolated, never production)"]
+    rep["Reproduce on replica"]
+    fix["Candidate fix + prevention rule"]
+    ver{"Verified?"}
+  end
+  subgraph Decide["4. Decide (human in the loop)"]
+    prop["Proposal: diff, rule, evidence"]
+    hum{"Human approves?"}
+  end
+  subgraph Ship["5. Ship and learn"]
+    pr["Pull request"]
+    dep["Redeploy + re-check"]
+    learn["Store lesson"]
+  end
+  audit[("Audit trail")]
+  ev --> win --> tri
+  tri -- "ignore / watch" --> win
+  tri -- "escalate" --> inc --> ctx --> code --> hyp --> rep
+  rep -- "not reproduced: report" --> prop
+  rep --> fix --> ver
+  ver -- "no, retry max 3" --> fix
+  ver -- "yes" --> prop --> hum
+  hum -- "reject" --> learn
+  hum -- "approve" --> pr --> dep --> learn
+  inc -.-> audit
+  rep -.-> audit
+  hum -.-> audit
+  dep -.-> audit
+  classDef obs fill:#d5e8d4,stroke:#82b366,color:#000000
+  classDef inv fill:#dae8fc,stroke:#6c8ebf,color:#000000
+  classDef prove fill:#f5f5f5,stroke:#666666,color:#000000
+  classDef human fill:#ffffff,stroke:#333333,color:#000000
+  classDef ship fill:#f8cecc,stroke:#b85450,color:#000000
+  class ev,win,tri obs
+  class inc,ctx,code,hyp inv
+  class rep,fix,ver,audit prove
+  class prop,hum human
+  class pr,dep,learn ship

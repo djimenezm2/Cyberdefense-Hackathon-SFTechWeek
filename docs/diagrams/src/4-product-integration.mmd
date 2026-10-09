@@ -1,0 +1,55 @@
+---
+title: Rootlane as a product — how a company connects its systems
+---
+flowchart LR
+  subgraph Customer["Customer company (any stack)"]
+    capp["Production apps<br>web · APIs · services"]
+    clogs["Logs and identity events<br>gateway · IdP · cloud audit"]
+    crepo["Code repositories"]
+    cdocs["Knowledge<br>runbooks · policies · past incidents"]
+    ccicd["CI/CD and deploy pipeline"]
+    cteam(["Security / on-call team"])
+  end
+  subgraph Connect["Integration points"]
+    sdk["1. Telemetry<br>SDK, OpenTelemetry or log forwarder"]
+    gapp["2. Repo access<br>GitHub App: read code, open PRs"]
+    kb["3. Context sync<br>docs to the verified-context store"]
+    hook["4. Delivery hook<br>deploy webhook or PR-only"]
+    notif["5. Approvals<br>dashboard, Slack, email"]
+  end
+  subgraph Platform["Rootlane platform"]
+    ingest["Ingest gateway<br>per-tenant auth, schema, redaction"]
+    store[("Real-time event store<br>ClickHouse")]
+    analyzer["Continuous analyzer<br>features + open-model triage"]
+    incidents["Incident manager<br>state, evidence, audit"]
+    agent["Investigator agent<br>hosted, governed, traced"]
+    tools["Tool gateway<br>scoped, read-only by default"]
+    replica["Isolated replica"]
+    verify["Verification<br>tests + Semgrep rules"]
+    context[("Verified context<br>Senso")]
+    console["Console + API<br>live trace, approve / reject"]
+  end
+  capp --> sdk --> ingest
+  clogs --> sdk
+  crepo --> gapp --> tools
+  cdocs --> kb --> context
+  ingest --> store --> analyzer --> incidents --> agent
+  agent --> tools
+  tools --> store
+  tools --> replica --> verify
+  agent --> context
+  incidents --> console --> notif --> cteam
+  cteam -- "approve" --> console
+  console -- "approved fix" --> hook
+  hook --> ccicd
+  hook -- "pull request" --> crepo
+  classDef cust fill:#ffffff,stroke:#333333,color:#000000
+  classDef conn fill:#f5f5f5,stroke:#666666,color:#000000
+  classDef plat fill:#dae8fc,stroke:#6c8ebf,color:#000000
+  classDef data fill:#d5e8d4,stroke:#82b366,color:#000000
+  classDef ai fill:#f8cecc,stroke:#b85450,color:#000000
+  class capp,clogs,crepo,cdocs,ccicd,cteam cust
+  class sdk,gapp,kb,hook,notif conn
+  class ingest,incidents,tools,replica,verify,console plat
+  class store,context data
+  class analyzer,agent ai

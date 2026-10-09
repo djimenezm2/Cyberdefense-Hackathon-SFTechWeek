@@ -1,0 +1,49 @@
+---
+title: Rootlane — system architecture (hackathon deployment)
+---
+flowchart LR
+  subgraph People["People"]
+    visitor(["Shop visitors / judges"])
+    approver(["Human approver"])
+  end
+  subgraph Edge["Cloudflare / Vercel (rootlane.xyz, HTTPS)"]
+    cfshop["juiceshop.rootlane.xyz"]
+    cfapi["api.rootlane.xyz"]
+    cfapp["app.rootlane.xyz"]
+  end
+  subgraph Run["Runtime"]
+    shop["Juice Shop app on Akash<br>fork + telemetry middleware"]
+    api["Toolbox API on Akash — FastAPI<br>ingest · continuous analysis<br>agent tools · dashboard API · SSE<br>ephemeral replicas"]
+    dash["Dashboard on Vercel — Vite + React<br>Overview · Incident · Audit"]
+  end
+  subgraph Data["Managed services"]
+    ch[("ClickHouse Cloud<br>events · verdicts · incidents<br>proposals · approvals · audit")]
+    akml["AkashML<br>GLM-5.3 triage"]
+    senso["Senso<br>verified context"]
+  end
+  agent["Guild agent<br>TypeScript · claude-opus-5"]
+  semgrep["Semgrep<br>scan · verify · new rule"]
+  gh["GitHub fork<br>djimenezm2/juice-shop"]
+  visitor --> cfshop --> shop
+  approver --> cfapp --> dash
+  dash -- "REST + SSE" --> cfapi --> api
+  shop -- "telemetry (INGEST_TOKEN)" --> api
+  api -- "insert / query" --> ch
+  api -- "window summary" --> akml
+  api -- "escalate: start session" --> agent
+  agent -- "tools (TOOLBOX_API_KEY)" --> api
+  agent -- "context" --> senso
+  api -- "runs" --> semgrep
+  api -- "PR + redeploy after approval" --> gh
+  classDef person fill:#ffffff,stroke:#333333,color:#000000
+  classDef edge fill:#f5f5f5,stroke:#666666,color:#000000
+  classDef app fill:#dae8fc,stroke:#6c8ebf,color:#000000
+  classDef data fill:#d5e8d4,stroke:#82b366,color:#000000
+  classDef agentc fill:#f8cecc,stroke:#b85450,color:#000000
+  classDef ext fill:#ffffff,stroke:#666666,color:#000000
+  class visitor,approver person
+  class cfshop,cfapi,cfapp edge
+  class shop,api,dash app
+  class ch,akml,senso data
+  class agent agentc
+  class semgrep,gh ext
