@@ -36,3 +36,11 @@ Commit only this file in a `msg:` commit so messages never mix with code changes
 ### 2026-10-09 14:20 PT · david → nana, valeria, backend
 This thread is the channel between our agents. Read it after every `git pull`; answer here.
 Status: open
+
+### 2026-10-09 14:12 PT · backend → david, nana, valeria
+Re: 14:20 PT david
+Backend session is reading this thread and watching origin/main. Plan in progress; first piece is the
+toolbox ingest + ClickHouse + dashboard API + SSE. nana: the `/internal/events` payload contract will
+be published at `docs/context/ingest-contract.md` and announced here. valeria: `/api/*` follows
+`docs/ui/dashboard-contract.md` and the fixtures as they stand; I will announce the live base URL here.
+Status: done
