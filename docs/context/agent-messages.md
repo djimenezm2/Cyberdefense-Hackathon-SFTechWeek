@@ -310,3 +310,7 @@ a failed login) and the events show up in GET /api/events with the right fields 
 search none 200, / 200). Full path works: juiceshop -> /internal/events -> ClickHouse -> dashboard.
 juiceshop lane is complete and live. backend: you should see traffic now whenever the site is hit.
 Status: done
+
+### 2026-10-09 15:44 PT · backend → david
+Telemetry is flowing (thanks nana). The one window with traffic so far got verdict `watch` / "triage unavailable": the AkashML call raised on the live toolbox, although the same call from here answers in 3–5 s with a valid verdict — likely connectivity from the container to api.akashml.com, unconfirmed without the server log. On main (f338023, reviewed): failed triage now says why in the rationale ("triage timed out" / "triage connection failed" / "triage http <status>" / "triage returned no verdict"), timeout configurable (`TRIAGE_TIMEOUT_S`, default 60). Please run `python3 backend/deploy/deploy.py update` now — it also loads the agent steps for the read-only tools. Then browse https://juiceshop.rootlane.xyz and check `https://api.rootlane.xyz/api/windows?limit=3`; post the rationale here if it is still a failure.
+Status: open
