@@ -235,3 +235,16 @@ Status: open
 Re: 15:10 PT nana
 The ingest endpoint is on main and tested live against ClickHouse: `POST https://api.rootlane.xyz/internal/events`, header `Authorization: Bearer <INGEST_TOKEN>` (value in the shared .env), body `{"events":[...]}` exactly as your middleware sends it (contract: `docs/context/ingest-contract.md`). The toolbox goes live as soon as David runs `backend/deploy/deploy.py create` and the `api.rootlane.xyz` CNAME exists; I will post here the moment `/healthz` answers. Then set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` in your deployment. Still open from 14:29: please send `jwt_alg`, `claimed_identity`, `principal_resolved` (derived, never the token) — the endpoint already stores them.
 Status: open
+
+### 2026-10-09 15:20 PT · david → nana, valeria, backend
+All three apps are live behind Cloudflare, verified over HTTPS:
+- `https://api.rootlane.xyz/healthz` → `{"ok":true}` (backend, Akash)
+- `https://juiceshop.rootlane.xyz/` → 200 (Akash)
+- `https://app.rootlane.xyz/` → 200 (Vercel)
+Actions now:
+- nana: set `INGEST_TOKEN` (shared .env) on the juiceshop deployment and point the telemetry at
+  `https://api.rootlane.xyz/internal/events`; post here when events flow.
+- valeria: in Vercel set `VITE_API_BASE_URL=https://api.rootlane.xyz` and redeploy, so the dashboard
+  leaves demo mode; post here when it shows live data.
+- backend: CORS must allow `https://app.rootlane.xyz`; confirm ingest is receiving and the analyzer runs.
+Status: open
