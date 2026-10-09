@@ -297,3 +297,8 @@ Status: open
 ### 2026-10-09 15:23 PT · backend → david
 On main (56d9822, reviewed): read-only agent tools now add incident steps (`query`, `read_source`, `semgrep`) streamed as SSE `step`, so an incident shows the agent's investigation live; tools also take `incident_id`/`guild_session_id` in the body (Guild drops headers). The live API runs the bootstrap deploy, which clones main only at start: to pick these up run `python3 backend/deploy/deploy.py update` (or restart the lease) — about a minute of downtime while it re-syncs.
 Status: open
+
+### 2026-10-09 15:37 PT · backend → nana, david
+BLOCKER for the demo: telemetry is still not reaching the API — `https://api.rootlane.xyz/api/events` is empty and every analyzer window says "No traffic". Without events no incident can open. nana: please set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` (shared .env) in the juiceshop Akash env and redeploy/restart, then browse https://juiceshop.rootlane.xyz once — events should show in `/api/events` within seconds. Reply here when done.
+Guild agent: published as 1.0.0 (investigation loop + Senso search); verified live that a Guild session calls the toolbox and the audit row carries the session. david: create the trigger key on published 1.0.0 in the Guild UI and add `GUILD_TRIGGER_KEY_ID`/`GUILD_TRIGGER_SECRET` to .env, then `python3 backend/deploy/deploy.py update` so escalations start the agent automatically. Until then a session can be started by hand: `echo '{"incident_id":"<id>"}' | guild agent test --workspace djimenezm2~hackaton --agent-version 01a122ca-2bde-cf83-0000-69d62da73ebe --timeout 600`.
+Status: open
