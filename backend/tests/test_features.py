@@ -32,3 +32,29 @@ def test_features_query_parameters_use_clickhouse_datetime_text():
 
     compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40.500Z")
     assert seen[0] == {"start": "2026-10-09 21:00:30.000", "end": "2026-10-09 21:00:40.500"}
+
+
+def _sqls(db_cls_responses=None):
+    seen = []
+
+    class SpyDB(FakeDB):
+        def query(self, sql, parameters=None):
+            seen.append(sql)
+            return super().query(sql, parameters)
+
+    return seen, SpyDB
+
+
+def test_new_principal_is_derived_from_http_requests_only():
+    seen, SpyDB = _sqls()
+    compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
+    principals_sql = next(q for q in seen if "GROUP BY principal_id" in q)
+    assert "auth_events" not in principals_sql
+    assert "auth_outcome = 'login_success'" in principals_sql
+
+
+def test_feature_rows_are_capped_at_the_busiest_twenty():
+    seen, SpyDB = _sqls()
+    compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
+    assert len(seen) == 2
+    assert all("ORDER BY requests DESC LIMIT 20" in q for q in seen)

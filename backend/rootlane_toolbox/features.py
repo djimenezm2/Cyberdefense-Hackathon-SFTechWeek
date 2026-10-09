@@ -4,11 +4,13 @@ _PRINCIPALS = """
 SELECT principal_id, count() AS requests, countIf(status >= 400) AS errors,
        uniqExact(ip) AS distinct_ips, uniqExact(route) AS distinct_routes,
        principal_id NOT IN (
-         SELECT claimed_identity FROM auth_events
-         WHERE event = 'login_success' AND ts <= {end:String}) AS new_principal
+         SELECT principal_id FROM http_requests
+         WHERE auth_outcome = 'login_success' AND principal_id != ''
+           AND ts <= {end:String}) AS new_principal
 FROM http_requests
 WHERE ts > {start:String} AND ts <= {end:String} AND principal_id != ''
 GROUP BY principal_id
+ORDER BY requests DESC LIMIT 20
 """
 _IPS = """
 SELECT ip, count() AS requests, countIf(status >= 400) AS errors,
@@ -18,6 +20,7 @@ SELECT ip, count() AS requests, countIf(status >= 400) AS errors,
 FROM http_requests
 WHERE ts > {start:String} AND ts <= {end:String}
 GROUP BY ip
+ORDER BY requests DESC LIMIT 20
 """
 
 

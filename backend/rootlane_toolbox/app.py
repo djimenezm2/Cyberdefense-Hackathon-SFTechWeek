@@ -24,14 +24,19 @@ def _build_clients(settings: Settings):
     return clickhouse_client(settings), lazy_read_only_client(settings)
 
 
+def _build_analyzer_client(settings: Settings):
+    return clickhouse_client(settings)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     settings = deps.state.settings
     if settings.triage_api_key:
+        analyzer_db = _build_analyzer_client(settings)
         analyzer = Analyzer(
             settings,
-            deps.state.db,
-            deps.state.store,
+            analyzer_db,
+            IncidentStore(analyzer_db, broker=deps.state.broker),
             AkashMLDecider(settings),
             GuildTrigger(settings),
             deps.state.broker,
