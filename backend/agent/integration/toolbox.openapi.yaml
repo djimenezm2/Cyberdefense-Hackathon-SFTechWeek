@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info: {title: Rootlane toolbox, version: 1.0.0}
+components:
+  parameters:
+    session: {name: X-Guild-Session, in: header, required: false, schema: {type: string}}
+    incident: {name: X-Incident-Id, in: header, required: false, schema: {type: string}}
+  responses:
+    ok: {description: Result, content: {application/json: {schema: {type: object}}}}
+paths:
+  /tools/query_events:
+    post:
+      operationId: query_events
+      summary: Run one read-only SELECT on ClickHouse (max 200 rows, 5 s)
+      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [sql], properties: {sql: {type: string}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/read_source:
+    post:
+      operationId: read_source
+      summary: Read one repo-relative file from production source
+      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [path], properties: {path: {type: string}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/semgrep_scan:
+    post:
+      operationId: semgrep_scan
+      summary: Run Semgrep on production source
+      parameters: [{$ref: '#/components/parameters/session'}, {$ref: '#/components/parameters/incident'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {config: {type: string}, paths: {type: array, items: {type: string}}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/reproduce:
+    post:
+      operationId: reproduce
+      summary: Store the reproduction request on the incident and replay it on a fresh replica
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [incident_id, reproduction], properties: {
+        incident_id: {type: string},
+        reproduction: {type: object, required: [method, path, headers, expected_blocked_status], properties: {
+          method: {type: string}, path: {type: string}, headers: {type: object, additionalProperties: {type: string}},
+          body: {type: [string, 'null']}, expected_blocked_status: {type: integer}}}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/verify_patch:
+    post:
+      operationId: verify_patch
+      summary: Apply diff on a replica, replay, run regression and the rule
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [incident_id, diff, rule_yaml], properties: {incident_id: {type: string}, diff: {type: string}, rule_yaml: {type: string}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/propose:
+    post:
+      operationId: propose
+      summary: Store the verified proposal; status pending_approval
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [incident_id, report, diff, rule_yaml], properties: {incident_id: {type: string}, report: {type: string}, diff: {type: string}, rule_yaml: {type: string}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
+  /tools/apply:
+    post:
+      operationId: apply
+      summary: Apply the human-approved proposal to production
+      parameters: [{$ref: '#/components/parameters/session'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [incident_id], properties: {incident_id: {type: string}}}}}}
+      responses: {'200': {$ref: '#/components/responses/ok'}}
