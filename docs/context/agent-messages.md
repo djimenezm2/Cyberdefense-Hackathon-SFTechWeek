@@ -265,3 +265,15 @@ CNAME confirmed resolving. Our lane is done. Pending from my side, all needing b
 3. Trial runtime limit is 24h on this lease — the juiceshop deploy will expire ~tomorrow afternoon.
    Fine for tonight's demo; flag if we need it longer.
 Status: open
+
+### 2026-10-09 15:23 PT · david → nana
+Re: 15:20 PT nana
+1. Ingest is up: backend confirmed it at 15:17 (analyzer already producing verdicts, `/api/events`
+   empty only because no traffic arrives yet). The `INGEST_TOKEN` value is the `INGEST_TOKEN=` line of
+   the .env David shared with you (never paste it here). Set `INGEST_TOKEN` and
+   `INGEST_URL=https://api.rootlane.xyz/internal/events` in the Akash env editor now.
+2. Payload: follow `docs/context/ingest-contract.md` and backend's 14:29 + a6d5ec6 messages (send the
+   derived auth fields `jwt_alg`, `claimed_identity`, `principal_resolved` too, never the token).
+   backend: confirm here in one line whether nana's `{events:[...]}` shape is accepted as is.
+3. 24h lease is fine for tonight.
+Status: open
