@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from ..core.config import Settings
 from ..core.guards import GuardError, diff_hash
 from .regression import run_smoke
-from .semgrep_runner import run_semgrep
+from .semgrep_runner import rule_errors, run_semgrep
 
 METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
 DROPPED_HEADERS = {
@@ -182,6 +182,123 @@ def touched_files(diff: str) -> list[str]:
     return paths
 
 
+_FENCE = re.compile(r"^\s*```")
+_HUNK_RANGE = re.compile(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@")
+CONTEXT_LINES = 3
+
+
+def _clean_text(text: str) -> str:
+    lines = [ln for ln in text.replace("\r\n", "\n").replace("\r", "\n").split("\n") if not _FENCE.match(ln)]
+    return "\n".join(lines).strip("\n") + "\n"
+
+
+def normalize_rule(rule_yaml: str) -> str:
+    """Strip markdown fences and CR line ends from an agent-written rule."""
+    return _clean_text(rule_yaml)
+
+
+def _with_prefix(line: str, marker: str, prefix: str) -> str:
+    path = line[len(marker):].strip()
+    if path == "/dev/null" or path.startswith(prefix):
+        return marker + path
+    return marker + prefix + path
+
+
+def _matches(file_line: str, agent_line: str) -> bool:
+    have, want = file_line.strip(), agent_line.strip()
+    return have == want or (bool(want) and have.startswith(want) and have[len(want):].lstrip().startswith("//"))
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def _repair_hunk(body: list[str], source: list[str] | None, path: str, start_from: int, delta: int):
+    old = [ln[1:] for ln in body if ln[:1] in (" ", "-")]
+    new_count = sum(1 for ln in body if ln[:1] in (" ", "+"))
+    if not old:
+        if source:
+            raise PatchError(f"hunk in {path} adds lines without context lines to place them")
+        return f"@@ -0,0 +1,{new_count} @@", body, 0
+    if source is None:
+        raise PatchError(f"{path} does not exist in the source tree")
+    for start in range(start_from, len(source) - len(old) + 1):
+        if all(_matches(source[start + k], old[k]) for k in range(len(old))):
+            break
+    else:
+        raise PatchError(f"hunk in {path} does not match the source; first line: {old[0].strip()[:120]!r}")
+    shifts = {_indent(source[start + k]) - _indent(old[k]) for k in range(len(old)) if old[k].strip()}
+    shift = shifts.pop() if len(shifts) == 1 else 0
+    fixed, k = [], 0
+    for ln in body:
+        if ln[:1] in (" ", "-"):
+            fixed.append(ln[0] + source[start + k])
+            k += 1
+        elif ln[:1] == "+" and ln[1:].strip():
+            text = ln[1:]
+            fixed.append("+" + (" " * shift + text if shift >= 0 else text[min(-shift, _indent(text)):]))
+        else:
+            fixed.append(ln)
+    end = start + len(old)
+    before = source[max(start_from, start - CONTEXT_LINES):start]
+    after = source[end:end + CONTEXT_LINES]
+    if after and after[-1] == "" and end + len(after) == len(source):
+        after = after[:-1]
+    fixed = [" " + ln for ln in before] + fixed + [" " + ln for ln in after]
+    first = start - len(before)
+    header = f"@@ -{first + 1},{len(old) + len(before) + len(after)} +{first + 1 + delta},{new_count + len(before) + len(after)} @@"
+    return header, fixed, end + len(after)
+
+
+def normalize_diff(diff: str, source_root: str) -> str:
+    """
+    Make an agent-written unified diff applicable with `git apply --recount -p1`.
+
+    Strips markdown fences and CR line ends, adds missing `a/`/`b/` prefixes and rebuilds hunk
+    headers without line ranges by locating the removed and context lines in the source, matching
+    them by content (indentation and trailing comments may differ).
+
+    Raises:
+        PatchError: If a path leaves the source tree or a hunk cannot be located.
+    """
+    lines = _clean_text(diff).split("\n")[:-1]
+    touched_files("\n".join(lines))
+    out: list[str] = []
+    source: list[str] | None = None
+    path, start_from, delta, i = "", 0, 0, 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("--- ") and i + 1 < len(lines) and lines[i + 1].startswith("+++ "):
+            old_line, new_line = _with_prefix(line, "--- ", "a/"), _with_prefix(lines[i + 1], "+++ ", "b/")
+            name = old_line[6:] if old_line != "--- /dev/null" else new_line[6:]
+            path, start_from, delta = name, 0, 0
+            target = os.path.join(source_root, name)
+            source = open(target, encoding="utf-8").read().split("\n") if os.path.isfile(target) else None
+            out += [old_line, new_line]
+            i += 2
+            continue
+        if line.startswith("@@"):
+            j = i + 1
+            while j < len(lines) and not lines[j].startswith("@@") and not (
+                lines[j].startswith("--- ") and j + 1 < len(lines) and lines[j + 1].startswith("+++ ")
+            ) and not lines[j].startswith("diff --git"):
+                j += 1
+            body = [ln if ln else " " for ln in lines[i + 1:j]]
+            while body and body[-1] == " ":
+                body.pop()
+            if _HUNK_RANGE.match(line):
+                out += [line, *body]
+            else:
+                header, body, start_from = _repair_hunk(body, source, path, start_from, delta)
+                out += [header, *body]
+            delta += sum(1 for ln in body if ln[:1] == "+") - sum(1 for ln in body if ln[:1] == "-")
+            i = j
+            continue
+        out.append(line)
+        i += 1
+    return "\n".join(out) + "\n"
+
+
 Builder = Callable[[str], AbstractContextManager[Replica]]
 OUTPUT_TAIL = 2000
 _COPY_IGNORE = shutil.ignore_patterns(".git", "node_modules")
@@ -312,7 +429,7 @@ class ReplicaBuilder:
             return
         timeout = self._settings.sandbox_build_timeout_s
         steps = (
-            (["git", "apply", "--whitespace=nowarn", "-"], diff, "diff does not apply"),
+            (["git", "apply", "--recount", "-p1", "--whitespace=nowarn", "-"], diff, "diff does not apply"),
             (["node_modules/.bin/tsc"], None, "patched source does not build"),
         )
         for args, stdin, failure in steps:
@@ -398,6 +515,7 @@ class SandboxManager:
         client: httpx.Client,
         semgrep: Callable[..., dict] = run_semgrep,
         smoke: Callable[[httpx.Client, str], dict] = run_smoke,
+        validate: Callable[[str], str | None] = rule_errors,
         lock_timeout_s: float = 300.0,
     ):
         self._settings = settings
@@ -405,6 +523,7 @@ class SandboxManager:
         self._client = client
         self._semgrep = semgrep
         self._smoke = smoke
+        self._validate = validate
         self._lock_timeout_s = lock_timeout_s
         self._lock = threading.Lock()
 
@@ -463,23 +582,27 @@ class SandboxManager:
             SandboxBusy: If another replica is still running.
             SandboxError: If a replica cannot be built or started.
         """
-        paths = touched_files(diff)
+        applied = normalize_diff(diff, self._settings.production_source_root)
+        paths = touched_files(applied)
         blocked = reproduction.expected_blocked_status
-        self._acquire()
-        try:
-            with tempfile.TemporaryDirectory(prefix="rootlane-rule-") as rule_dir:
-                rule_path = os.path.join(rule_dir, "rule.yaml")
-                with open(rule_path, "w", encoding="utf-8") as fh:
-                    fh.write(rule_yaml)
+        with tempfile.TemporaryDirectory(prefix="rootlane-rule-") as rule_dir:
+            rule_path = os.path.join(rule_dir, "rule.yaml")
+            with open(rule_path, "w", encoding="utf-8") as fh:
+                fh.write(normalize_rule(rule_yaml))
+            error = self._validate(rule_path)
+            if error:
+                raise PatchError(f"rule is invalid: {error}")
+            self._acquire()
+            try:
                 with self._builder("") as old:
                     before = self._replay(old.base_url, reproduction)
                     semgrep_old = self._scan(rule_path, paths, old.source_dir)
-                with self._builder(diff) as new:
+                with self._builder(applied) as new:
                     after = self._replay(new.base_url, reproduction)
                     regression = self._smoke(self._client, new.base_url)
                     semgrep_new = self._scan(rule_path, paths, new.source_dir)
-        finally:
-            self._lock.release()
+            finally:
+                self._lock.release()
         passed = (
             before["status"] != blocked
             and after["status"] == blocked
@@ -490,6 +613,7 @@ class SandboxManager:
         return {
             "hash": diff_hash(diff),
             "passed": passed,
+            "applied_diff": applied,
             "exploit_before": before["status"],
             "exploit_after": after["status"],
             "replica_before": before,
