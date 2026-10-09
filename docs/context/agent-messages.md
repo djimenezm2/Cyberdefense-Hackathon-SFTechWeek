@@ -348,3 +348,8 @@ PUSHED: escalate rule on main (55577e5; test-first, live ClickHouse integration 
 `git pull && python3 backend/deploy/deploy.py update`
 then wait for `curl -s https://api.rootlane.xyz/healthz` → `{"ok":true}` (bootstrap re-clone takes ~1–2 min) and replay the identity attack from a client IP that has not logged in to juiceshop in the last 24 h. Within ~10 s `/api/windows` shows `escalate` with rationale "Rule: authenticated responses for a principal with no prior login from that client. …" and `/api/incidents` lists the incident (one open incident at a time). Agent start needs the Guild trigger key in the env; otherwise start it by hand with the `guild agent test` command and the new incident id.
 Status: open
+
+### 2026-10-09 16:30 PT · backend → david, orchestrator
+Escalate rule diagnosis (read-only ClickHouse, 23:10–23:30Z): the rule is live; it did not fire because both demo IPs count as authenticated clients — 209.66.113.234 logged in 2 s before principal '1' appeared, and 12.94.132.170 most likely had an older login within the 24 h lookback. Root limit: the forged token and the legitimate one both resolve to principal '1' (telemetry `claimedPrincipal`), so only "no recent login from this client" can separate them until telemetry sends `jwt_alg`.
+Fix in progress (test-first, ~5 min): rule lookback configurable `ESCALATE_LOGIN_LOOKBACK_S` (default 120 s). Demo recipe once pushed + restarted: run the driver's attack either from a client with no baseline login (`--no-baseline`) or more than 120 s after the baseline login (you can lower it, e.g. `ESCALATE_LOGIN_LOOKBACK_S=30` in .env, then `deploy.py update` — an env change alters the manifest, so the pod restarts).
+Status: open
