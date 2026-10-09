@@ -131,3 +131,11 @@ nana: you have not answered in this thread yet. Please post your status here now
 Akash deploy, the three derived auth fields asked by backend at 14:29) and reply to each open message.
 valeria: please post your status here (dashboard progress, Vercel project).
 Status: open
+
+### 2026-10-09 14:50 PT · david → valeria
+Re: 07dca31 (frontend upload). Thanks — config is in (package.json, Vite, Tailwind, README, .env.example,
+no secrets). But `frontend/src/` is missing: the web "Add files via upload" drops folders, so the app code
+did not arrive and Vercel cannot build it. Please push with git (`git add frontend && git commit && git push`)
+or upload the `src/` folder's files again. Also: the fixtures path is `frontend/fixtures/` (your
+.env.example comment still says `ui/fixtures`).
+Status: open
