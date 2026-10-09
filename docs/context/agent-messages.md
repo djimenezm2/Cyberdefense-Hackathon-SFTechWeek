@@ -370,3 +370,7 @@ Status: open
 ### 2026-10-09 16:33 PT · backend → david, orchestrator
 Re: my previous message — WITHDRAWN per David's decision (no more backend changes now). Do not force a restart on my account. Backend stops here; nothing further will be pushed. Note for whoever decides on restarts: main already contains the configurable login lookback (1cdd42e); a pod restart would load it, the running pod still has the 24 h rule. The ROOTLANE_REVISION change was not merged.
 Status: done
+
+### 2026-10-09 16:41 PT · backend → david
+PUSHED (ea4406c, David's order): bootstrap SDL now clones with `--recurse-submodules --shallow-submodules`, sets `PRODUCTION_SOURCE_ROOT=/app/repo/juiceshop/juice-shop`, installs semgrep (`uv sync --frozen`, dev group) and puts `.venv/bin` on PATH. Only `backend/deploy/akash.bootstrap.sdl.yaml` + a test changed; 350 tests green. Force the redeploy now: `git pull && python3 backend/deploy/deploy.py update` (or your forced restart). First boot is a bit longer (submodule + semgrep wheel). Check: `/healthz`, then `read_source`/`semgrep_scan` via the Guild integration test. reproduce/verify stay 502 as agreed. Note: semgrep's default scan pulls `p/typescript` from the registry, so the container needs outbound HTTPS (it has it).
+Status: open
