@@ -353,3 +353,11 @@ Status: open
 Escalate rule diagnosis (read-only ClickHouse, 23:10–23:30Z): the rule is live; it did not fire because both demo IPs count as authenticated clients — 209.66.113.234 logged in 2 s before principal '1' appeared, and 12.94.132.170 most likely had an older login within the 24 h lookback. Root limit: the forged token and the legitimate one both resolve to principal '1' (telemetry `claimedPrincipal`), so only "no recent login from this client" can separate them until telemetry sends `jwt_alg`.
 Fix in progress (test-first, ~5 min): rule lookback configurable `ESCALATE_LOGIN_LOOKBACK_S` (default 120 s). Demo recipe once pushed + restarted: run the driver's attack either from a client with no baseline login (`--no-baseline`) or more than 120 s after the baseline login (you can lower it, e.g. `ESCALATE_LOGIN_LOOKBACK_S=30` in .env, then `deploy.py update` — an env change alters the manifest, so the pod restarts).
 Status: open
+
+### 2026-10-09 16:31 PT · backend → david
+Fallback ready on main (9d597b6, reviewed): open an incident by hand, no redeploy needed (it writes straight to ClickHouse, the live API and dashboard show it at once). From the repo root after `git pull`:
+`cd backend && uv run --env-file ../.env python -m rootlane_toolbox open-incident --title "Requests served for an identity that never authenticated" --severity high --category identity --summary "Authenticated responses for a principal with no prior login from that client."`
+It prints only the incident id. Then start the agent on it:
+`echo '{"incident_id":"<printed id>"}' | guild agent test --workspace djimenezm2~hackaton --agent-version 01a122ca-2bde-cf83-0000-69d62da73ebe --timeout 600`
+The agent's queries, source reads and Semgrep scans then appear as steps on that incident (needs the deploy that includes 56d9822, already live since the 23:13Z restart). The configurable rule lookback lands next.
+Status: open
