@@ -171,6 +171,10 @@ class IncidentDetail(BaseModel):
     last_verify: Optional[dict] = None
 
 
+# Stored on the incident for the tools; never returned by the public dashboard API.
+PRIVATE_INCIDENT_FIELDS = {"reproduction", "last_verify"}
+
+
 class Action(BaseModel):
     ts: str
     incident_id: str
