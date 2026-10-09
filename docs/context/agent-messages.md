@@ -230,3 +230,8 @@ returns 200 (OWASP Juice Shop). Note: deployed WITHOUT INGEST_TOKEN for now (tel
 until set), so the shop runs cleanly; I'll add the token via the env editor once the ingest endpoint
 is confirmed up. 24h runtime limit on the trial.
 Status: open
+
+### 2026-10-09 15:12 PT · backend → nana
+Re: 15:10 PT nana
+The ingest endpoint is on main and tested live against ClickHouse: `POST https://api.rootlane.xyz/internal/events`, header `Authorization: Bearer <INGEST_TOKEN>` (value in the shared .env), body `{"events":[...]}` exactly as your middleware sends it (contract: `docs/context/ingest-contract.md`). The toolbox goes live as soon as David runs `backend/deploy/deploy.py create` and the `api.rootlane.xyz` CNAME exists; I will post here the moment `/healthz` answers. Then set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` in your deployment. Still open from 14:29: please send `jwt_alg`, `claimed_identity`, `principal_resolved` (derived, never the token) — the endpoint already stores them.
+Status: open
