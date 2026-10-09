@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-from .models import Action, IncidentDetail, IncidentSummary
+from .broker import Broker
+from .models import Action, AgentStep, IncidentDetail, IncidentSummary
 
 TERMINAL = {"applied", "rejected", "not_reproduced"}
 _INCIDENT_COLS = [
@@ -48,11 +49,24 @@ def parse_iso(value: str) -> datetime:
 class IncidentStore:
     """Incident documents (latest-wins) and the append-only agent audit."""
 
-    def __init__(self, client):
+    def __init__(self, client, broker: Broker | None = None):
         self._client = client
+        self._broker = broker
 
-    def put(self, detail: IncidentDetail) -> None:
-        """Insert a new incidents row carrying the full document and the core columns."""
+    def put(self, detail: IncidentDetail, step: AgentStep | None = None) -> None:
+        """
+        Insert a new incidents row carrying the full document and the core columns.
+
+        Publishes `incident_update` when the incident is new or its status changed, and
+        `step` when a step is given (it is appended to the document first).
+
+        Args:
+            detail (IncidentDetail): The incident document to store.
+            step (AgentStep | None): A step recorded together with this write.
+        """
+        previous = self.get(detail.id) if self._broker else None
+        if step is not None:
+            detail.steps.append(step)
         row = [
             detail.id,
             datetime.now(timezone.utc),
@@ -64,6 +78,32 @@ class IncidentStore:
             detail.model_dump_json(),
         ]
         self._client.insert("incidents", [row], column_names=_INCIDENT_COLS)
+        if self._broker is None:
+            return
+        if previous is None or previous.status != detail.status:
+            self._broker.publish(
+                "incident_update",
+                {
+                    "id": detail.id,
+                    "status": detail.status,
+                    "severity": detail.severity,
+                    "title": detail.title,
+                },
+            )
+        if step is not None:
+            self._broker.publish("step", {"incident_id": detail.id, **step.model_dump()})
+
+    def add_step(self, incident_id: str, step: AgentStep) -> None:
+        """
+        Append a step to an existing incident and publish it.
+
+        Raises:
+            KeyError: If the incident does not exist.
+        """
+        detail = self.get(incident_id)
+        if detail is None:
+            raise KeyError(incident_id)
+        self.put(detail, step=step)
 
     def get(self, incident_id: str) -> IncidentDetail | None:
         """Return the latest document of an incident, or None when it does not exist."""

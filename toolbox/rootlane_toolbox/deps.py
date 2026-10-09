@@ -1,3 +1,4 @@
+from .broker import Broker, broker as default_broker
 from .config import Settings
 from .store import IncidentStore
 
@@ -9,6 +10,8 @@ class AppState:
     db = None
     ro_db = None
     store: IncidentStore
+    broker: Broker = default_broker
+    sse_ping_s: float = 15.0
 
 
 state = AppState()
@@ -28,3 +31,11 @@ def get_ro_db():
 
 def get_store() -> IncidentStore:
     return state.store
+
+
+def get_broker() -> Broker:
+    return state.broker
+
+
+def get_ping_interval() -> float:
+    return state.sse_ping_s

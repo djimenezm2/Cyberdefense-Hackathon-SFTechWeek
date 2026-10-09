@@ -153,10 +153,12 @@ def _decide(incident_id: str, store: IncidentStore, approver: str, decision: str
         proposal_hash=detail.proposal.proposal_hash,
     )
     detail.status = "applying" if decision == "approve" else "rejected"
-    detail.steps.append(
-        AgentStep(ts=now_iso(), kind="approval", summary=f"{decision} by {approver}", outcome="ok")
+    store.put(
+        detail,
+        step=AgentStep(
+            ts=now_iso(), kind="approval", summary=f"{decision} by {approver}", outcome="ok"
+        ),
     )
-    store.put(detail)
     return detail
 
 
