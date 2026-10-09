@@ -44,11 +44,11 @@ class AkashMLDecider:
             features (dict): The output of `compute_features`.
 
         Returns:
-            dict: `verdict` (ignore|watch|escalate), `rationale` and `model`. An
-                unparseable or unknown verdict becomes `watch`.
+            dict: `verdict` (ignore|watch|escalate), `rationale` and `model`.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            TriageError: On a timeout, a connection failure, an HTTP error status, or a
+                reply with no or an unknown verdict. The message is the short reason.
         """
         try:
             resp = self._http.post(
