@@ -12,10 +12,11 @@ export default function ApprovalBox({ inc, onApprove, onReject, needToken, onTok
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const askToken = MODE === 'live' && (needToken || !auth.token)
+  const gh = !!auth.github
+  const askToken = MODE === 'live' && !gh && (needToken || !auth.token)
 
   const save = () => {
-    const next = { name: name.trim() || auth.name, token: token.trim() || auth.token }
+    const next = { ...auth, name: name.trim() || auth.name, token: token.trim() || auth.token }
     writeAuth(next)
     if (token.trim()) onTokenSaved?.()
   }
@@ -38,11 +39,18 @@ export default function ApprovalBox({ inc, onApprove, onReject, needToken, onTok
         Approving opens a pull request on the fork, redeploys production and replays the attack to confirm it now fails.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {gh ? (
+          <div className="flex items-center gap-2 text-[12px] text-mute-200">
+            {auth.avatar && <img src={auth.avatar} alt="" className="h-6 w-6 rounded-full" />}
+            Approving as <span className="font-mono text-mute-100">@{auth.name}</span> · GitHub
+          </div>
+        ) : (
         <label className="text-[11px] text-mute-400">
           Approver
           <input id={`approver-${inc.id}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name"
             className="mt-1 w-full rounded-lg border border-ink-600 bg-ink-950 px-2.5 py-1.5 text-[13px] text-mute-100 focus:border-lime/60 focus:outline-none" />
         </label>
+        )}
         {askToken && (
           <label className="text-[11px] text-mute-400">
             Admin token
