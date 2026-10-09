@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import time
 import re
 from contextlib import contextmanager
@@ -89,6 +90,24 @@ def args_hash(args: dict) -> str:
     return hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
+class StepNote:
+    """What a tool call tells the incident timeline: a label for failures and a summary for success."""
+
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.ok_summary = ""
+
+
+def _record_step(store: IncidentStore, incident_id: str, kind: str, note: StepNote, outcome: str) -> None:
+    summary = note.ok_summary if outcome == "ok" and note.ok_summary else f"{note.label} ({outcome})"
+    try:
+        detail = store.get(incident_id)
+        if detail is not None:
+            store.put(detail, step=_step(kind, summary, outcome))
+    except Exception:
+        logging.getLogger(__name__).warning("could not append %s step to %s", kind, incident_id, exc_info=True)
+
+
 @contextmanager
 def record(
     store: IncidentStore,
@@ -97,6 +116,7 @@ def record(
     args: dict,
     session_id: str,
     on_behalf_of: str | None = None,
+    step_kind: str | None = None,
 ):
     """
     Time a tool call and write one `agent_actions` row when it ends.
@@ -108,6 +128,10 @@ def record(
         args (dict): Call arguments, hashed into the row.
         session_id (str): Guild session id.
         on_behalf_of (str | None): Identity shown on the dashboard; derived from the session by default.
+        step_kind (str | None): When set, an agent step of this kind is appended to the incident.
+
+    Yields:
+        StepNote: Set `label` and `ok_summary` to describe the call on the incident timeline.
 
     Note:
         The outcome is `ok`, `refused` for a `GuardError`, or `error` for anything else; the
@@ -116,13 +140,14 @@ def record(
     started = time.monotonic()
     outcome = "ok"
     valid_incident, valid_session = "", "unknown"
+    note = StepNote()
     try:
         if incident_id and not ID_PATTERN.fullmatch(incident_id):
             raise GuardError("illegal incident_id")
         if session_id and not ID_PATTERN.fullmatch(session_id):
             raise GuardError("illegal guild_session_id")
         valid_incident, valid_session = incident_id, session_id or "unknown"
-        yield
+        yield note
     except GuardError:
         outcome = "refused"
         raise
@@ -139,6 +164,8 @@ def record(
             on_behalf_of=on_behalf_of or f"rootlane-agent (Guild session {valid_session})",
         )
         store.record_action(action, guild_session_id=valid_session, args_hash=args_hash(args))
+        if step_kind and valid_incident:
+            _record_step(store, valid_incident, step_kind, note, outcome)
 
 
 class ToolBody(BaseModel):
@@ -179,11 +206,13 @@ def query_events(
     """
     with record(
         store, "query_events", _pick(body.incident_id, header_incident), body.model_dump(),
-        _pick(body.guild_session_id, header_session),
-    ):
+        _pick(body.guild_session_id, header_session), step_kind="query",
+    ) as note:
+        note.label = "Read-only query"
         sql = assert_read_only_sql(body.sql)
         result = ro_db.query(sql)
         rows = [[_json_cell(c) for c in r] for r in result.result_rows[:MAX_ROWS]]
+        note.ok_summary = f"Ran a read-only query ({len(rows)} rows)"
         return {
             "columns": list(result.column_names),
             "rows": rows,
@@ -202,8 +231,9 @@ def read_source(
     """Return a file from the production source tree."""
     with record(
         store, "read_source", _pick(body.incident_id, header_incident), body.model_dump(),
-        _pick(body.guild_session_id, header_session),
-    ):
+        _pick(body.guild_session_id, header_session), step_kind="read_source",
+    ) as note:
+        note.label = note.ok_summary = f"Read {body.path[:80]}"
         target = resolve_source_path(settings.production_source_root, body.path)
         if "node_modules" in target.parts:
             raise GuardError("node_modules is not readable")
@@ -229,8 +259,9 @@ def semgrep_scan(
     """Run Semgrep over the production source tree and return the findings."""
     with record(
         store, "semgrep_scan", _pick(body.incident_id, header_incident), body.model_dump(),
-        _pick(body.guild_session_id, header_session),
-    ):
+        _pick(body.guild_session_id, header_session), step_kind="semgrep",
+    ) as note:
+        note.label = "Semgrep scan"
         root = settings.production_source_root
         config = _semgrep_config(body.config)
         for path in body.paths or []:
@@ -238,9 +269,11 @@ def semgrep_scan(
                 raise GuardError(f"illegal path: {path!r}")
             resolve_source_path(root, path)
         try:
-            return run_semgrep(config, body.paths, cwd=root)
+            result = run_semgrep(config, body.paths, cwd=root)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
+        note.ok_summary = f"Semgrep: {result['findings']} findings"
+        return result
 
 
 STEP_SUMMARY_CHARS = 300
