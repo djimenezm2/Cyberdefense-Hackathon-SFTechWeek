@@ -348,6 +348,12 @@ class ReplicaBuilder:
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+def build_sandbox(settings: Settings) -> "SandboxManager":
+    """Wire the production sandbox: Juice Shop replicas on the sandbox port, bounded HTTP calls."""
+    client = httpx.Client(timeout=settings.sandbox_request_timeout_s, trust_env=False)
+    return SandboxManager(settings, builder=ReplicaBuilder(settings).build, client=client)
+
+
 class SandboxManager:
     """
     Builds throwaway replicas of production and checks the agent's reproduction against them.

@@ -36,6 +36,15 @@ def test_state_wires_the_shared_broker_into_the_store(client):
     assert deps.state.store._broker is deps.state.broker
 
 
+def test_state_wires_a_sandbox_on_the_configured_port(client):
+    from rootlane_toolbox.integrations.sandbox import SandboxManager
+
+    sandbox = deps.state.sandbox
+    assert isinstance(sandbox, SandboxManager)
+    assert sandbox._builder.__self__.base_url == "http://127.0.0.1:3001"
+    assert sandbox._client.timeout.read == 15.0 and sandbox._client.trust_env is False
+
+
 def test_cors_preflight_allows_the_configured_origin(client):
     r = client.options(
         "/api/overview",
