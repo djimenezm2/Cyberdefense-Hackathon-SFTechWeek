@@ -9,7 +9,7 @@
 # the shop runs normally and telemetry is a no-op.
 
 # ---- builder: overlay telemetry, apply the server patch, build frontend + server ----
-FROM node:24-bookworm AS builder
+FROM public.ecr.aws/docker/library/node:24-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends patch && rm -rf /var/lib/apt/lists/*
 WORKDIR /juice-shop
 
@@ -29,7 +29,7 @@ RUN npm run build
 RUN npm prune --omit=dev && mkdir -p logs
 
 # ---- runtime ----
-FROM node:24-bookworm-slim
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /juice-shop
 COPY --from=builder /juice-shop ./
