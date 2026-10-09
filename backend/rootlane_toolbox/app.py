@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from . import deps
 from .config import Settings
 from .dashboard import dashboard_router
-from .db import clickhouse_client
+from .db import ReadOnlyUnavailable, clickhouse_client, lazy_read_only_client
 from .guards import GuardError
 from .ingest import ingest_router
 from .store import IncidentStore
@@ -15,7 +15,7 @@ from .stream import stream_router
 
 
 def _build_clients(settings: Settings):
-    return clickhouse_client(settings), clickhouse_client(settings, read_only=True)
+    return clickhouse_client(settings), lazy_read_only_client(settings)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -44,6 +44,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_exception_handler(
         GuardError, lambda request, error: JSONResponse(status_code=400, content={"detail": str(error)})
+    )
+    app.add_exception_handler(
+        ReadOnlyUnavailable,
+        lambda request, error: JSONResponse(status_code=503, content={"detail": str(error)}),
     )
     app.include_router(ingest_router)
     app.include_router(dashboard_router)
