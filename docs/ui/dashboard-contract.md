@@ -2,7 +2,7 @@
 
 The dashboard lives at `https://app.rootlane.xyz` as its own deployment (Vite + React, static build).
 It calls the API at `https://api.rootlane.xyz` (base URL from `VITE_API_BASE_URL`); the API allows CORS
-from the dashboard origin. During development point the app at the fixtures in `ui/fixtures/` (same
+from the dashboard origin. During development point the app at the fixtures in `frontend/fixtures/` (same
 shapes as the live API) or at `http://localhost:8000` once the toolbox runs.
 
 Copy is in English (judges). Times are ISO-8601 UTC strings; render them in local time.

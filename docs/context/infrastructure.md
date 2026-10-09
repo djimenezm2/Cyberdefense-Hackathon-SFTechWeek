@@ -17,7 +17,7 @@ State as of 2026-10-09 ~13:40 PT. Secrets live only in each teammate's local `.e
 ## Juice Shop fork
 
 - Upstream: `juice-shop/juice-shop`. Ours: `djimenezm2/juice-shop` (`JUICE_SHOP_REPO`).
-- Brought into this repo as a git submodule at `target/juice-shop`, pinned to a release tag.
+- Brought into this repo as a git submodule at `juiceshop/juice-shop`, pinned to a release tag.
 - The `juiceshop` app is built from the fork; the toolbox keeps a copy of the same source to build replicas and to prepare patches.
 - Approved fixes go to the fork as a pull request from a branch `rootlane/<incident-id>` into `master`, opened with `GITHUB_TOKEN`. The PR is the record; the toolbox redeploys the `juiceshop` app from the patched source at approval time.
 
@@ -27,7 +27,7 @@ State as of 2026-10-09 ~13:40 PT. Secrets live only in each teammate's local `.e
   - `juiceshop`: Juice Shop built from the fork + telemetry middleware (Node 22).
   - `toolbox`: Python FastAPI + Semgrep + Node 22 and the fork source for ephemeral replicas.
   - `dashboard`: static Vite build served by a small web server.
-- GitHub Actions builds each image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane-<app>`); Akash pulls it. Deployment described in `deploy/akash.sdl.yaml` and created through the Akash Console API.
+- GitHub Actions builds each image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane-<app>`); Akash pulls it. Each app keeps its Akash SDL in its own folder (`<app>/deploy/akash.sdl.yaml`) and created through the Akash Console API.
 - Public hostnames, each a proxied Cloudflare CNAME to the Akash provider ingress host, listed in the SDL `accept:` field:
   - `juiceshop.rootlane.xyz` → Juice Shop
   - `api.rootlane.xyz` → toolbox API (the Guild integration base URL)

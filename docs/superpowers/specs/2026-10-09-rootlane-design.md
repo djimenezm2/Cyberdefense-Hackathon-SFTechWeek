@@ -119,7 +119,7 @@ CNAMEs under `rootlane.xyz`. Secrets as Akash env vars. `ui` on Akash or Vercel,
 - **Demo scenarios.** Three weaknesses already present in Juice Shop — one identity, one injection, one authorization. Nothing in the analyzer or the agent is specific to them.
 - **Telemetry never stores passwords, tokens or request bodies**, only derived fields.
 - **Image build.** GitHub Actions builds the Docker image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane`); no local Docker needed.
-- **Dashboard API** is fixed by `docs/ui/dashboard-contract.md` and `ui/fixtures/`.
+- **Dashboard API** is fixed by `docs/ui/dashboard-contract.md` and `frontend/fixtures/`.
 - **Three separate deployments**, each its own app and Akash deployment: `juiceshop.rootlane.xyz` (Juice Shop from our fork plus the telemetry middleware), `api.rootlane.xyz` (toolbox, which also holds the ephemeral replicas built from the fork source), `app.rootlane.xyz` (dashboard, static). The middleware sends telemetry to `https://api.rootlane.xyz/internal/events` authenticated with `INGEST_TOKEN`. The toolbox allows CORS from `https://app.rootlane.xyz`. Applying an approved fix opens the PR on the fork and redeploys the Juice Shop app from the patched source (new image tag, Akash deployment update); it no longer restarts a process inside the toolbox.
 - **Live updates.** The dashboard receives the analyzer verdicts and the agent's steps as they happen over Server-Sent Events (`GET /api/stream`), falling back to polling every 2 s. All UI copy in English.
 - **Chat with the agent** about an incident is optional, built only after the three core screens work.

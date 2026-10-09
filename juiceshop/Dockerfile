@@ -3,7 +3,7 @@
 #
 # Build context is the REPO ROOT (so the submodule, the telemetry overlay and the patch
 # are all in scope). Built by GitHub Actions and pushed to ghcr.io/djimenezm2/rootlane-juiceshop.
-#   docker build -f target/Dockerfile -t rootlane-juiceshop .
+#   docker build -f juiceshop/Dockerfile -t rootlane-juiceshop .
 #
 # Telemetry is configured at runtime via env (INGEST_URL, INGEST_TOKEN). With them unset
 # the shop runs normally and telemetry is a no-op.
@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends patch && rm -rf
 WORKDIR /juice-shop
 
 # Juice Shop source from our pinned fork submodule.
-COPY target/juice-shop/ ./
+COPY juiceshop/juice-shop/ ./
 
 # Rootlane overlay: the telemetry module and the one-file server wiring patch.
-COPY target/telemetry/telemetry.ts ./lib/telemetry.ts
-COPY deploy/patches/server-telemetry.patch /tmp/server-telemetry.patch
+COPY juiceshop/telemetry/telemetry.ts ./lib/telemetry.ts
+COPY juiceshop/patches/server-telemetry.patch /tmp/server-telemetry.patch
 RUN patch -p1 < /tmp/server-telemetry.patch
 
 # Full install (dev deps needed to compile) then build frontend + server (-> build/app.js,

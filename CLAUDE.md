@@ -5,9 +5,20 @@ Submission closes 4:30 PM PT on 2026-10-09. Read these before working:
 - `docs/context/team-status.md` — who is building what right now (read first).
 - `docs/context/hackathon.md` — challenge, submission form, prizes, sponsor asks, judge themes.
 - `docs/superpowers/specs/2026-10-09-rootlane-design.md` — what we are building.
-- `docs/ui/dashboard-contract.md` + `ui/fixtures/` — dashboard screens and API contract (UI team starts here).
+- `docs/ui/dashboard-contract.md` + `frontend/fixtures/` — dashboard screens and API contract (UI team starts here).
 - `docs/context/infrastructure.md` — services state, Juice Shop fork, deployment and DNS.
 - `docs/research/` — verified sponsor docs: `guild.md`, `senso-akashml.md`, `clickhouse-semgrep-juiceshop.md`.
+
+## Repository layout
+
+```
+backend/     toolbox API (Python, FastAPI) and backend/agent/ (Guild agent, TypeScript) — api.rootlane.xyz
+frontend/    dashboard (Vite + React) and frontend/fixtures/ (API contract samples) — app.rootlane.xyz
+juiceshop/   Juice Shop app: juice-shop/ (fork submodule), telemetry/, patches/, Dockerfile — juiceshop.rootlane.xyz
+docs/        context, spec, plans, research, dashboard contract
+```
+
+Each app owns its Dockerfile, its `deploy/` (Akash SDL) and its GitHub Actions workflow. Work only in your own folder.
 
 ## Agent messages (required)
 

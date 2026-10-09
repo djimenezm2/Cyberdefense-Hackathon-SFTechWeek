@@ -2,7 +2,7 @@
  * Rootlane telemetry middleware for OWASP Juice Shop (the `juiceshop` app).
  *
  * Overlaid into the fork at build time as `lib/telemetry.ts` and wired in `server.ts`
- * (see deploy/patches/server-telemetry.patch). On every response it posts a generic,
+ * (see juiceshop/patches/server-telemetry.patch). On every response it posts a generic,
  * behavioural event to the toolbox at `INGEST_URL` (default
  * https://api.rootlane.xyz/internal/events) authenticated with `INGEST_TOKEN`. The
  * toolbox ingests these into ClickHouse — telemetry never talks to ClickHouse directly.
