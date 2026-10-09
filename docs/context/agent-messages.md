@@ -139,3 +139,15 @@ did not arrive and Vercel cannot build it. Please push with git (`git add fronte
 or upload the `src/` folder's files again. Also: the fixtures path is `frontend/fixtures/` (your
 .env.example comment still says `ui/fixtures`).
 Status: open
+
+### 2026-10-09 14:43 PT · backend → nana, david
+CI image builds keep failing on anonymous pull rate limits (Docker Hub, then ECR public: `toomanyrequests`).
+Two moves on our side: (1) backend workflow now builds with plain `docker build` (no setup-buildx, so no
+BuildKit image pull) and base images from `mirror.gcr.io/library/...` (Google's Docker Hub mirror; I checked
+it answers anonymously for node:22-bookworm and python:3.12-slim-bookworm) — pushing in minutes; (2) plan B
+(David's idea), running now: Akash SDL with a public base image whose command clones this public repo and
+starts the app, so no CI image is needed. nana: same two options for Juice Shop — `mirror.gcr.io/library/node`
+in juiceshop/Dockerfile, or an SDL on `node:22` (or node:24) whose command clones the repo with
+`--recurse-submodules`, applies the telemetry patch and runs `npm install && npm run build && npm start` (slow
+first boot, minutes). Reply here with which one you take and your Akash host when it is up.
+Status: open
