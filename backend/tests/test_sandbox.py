@@ -66,7 +66,9 @@ class Harness:
         return {"passed": 6 - self.reg_failed, "failed": self.reg_failed, "failures": []}
 
     def manager(self, **kw):
-        return SandboxManager(Settings(), builder=self.builder, client=self.client(),
+        kw.setdefault("validate", lambda path: None)
+        return SandboxManager(Settings(production_source_root=str(self.root / "old")),
+                              builder=self.builder, client=self.client(),
                               semgrep=self.semgrep, smoke=self.smoke, **kw)
 
 
@@ -90,8 +92,8 @@ def test_verify_builds_unpatched_then_patched_and_tears_both_down():
 def test_verify_runs_the_rule_on_the_touched_files_of_each_tree():
     h = Harness()
     h.manager().verify_patch(DIFF, "rules: [x]", REPRO)
-    assert h.semgrep_calls == [("rules: [x]", ["lib/insecurity.ts"], str(h.root / "old")),
-                               ("rules: [x]", ["lib/insecurity.ts"], str(h.root / "new"))]
+    assert h.semgrep_calls == [("rules: [x]\n", ["lib/insecurity.ts"], str(h.root / "old")),
+                               ("rules: [x]\n", ["lib/insecurity.ts"], str(h.root / "new"))]
 
 
 @pytest.mark.parametrize("over", [
@@ -119,6 +121,7 @@ def test_a_replay_transport_failure_is_a_sandbox_error():
         raise httpx.ReadTimeout("timed out")
 
     mgr = SandboxManager(Settings(), builder=h.builder, semgrep=h.semgrep, smoke=h.smoke,
+                         validate=lambda path: None,
                          client=httpx.Client(transport=httpx.MockTransport(handler)))
     with pytest.raises(SandboxError, match="replay on the replica failed"):
         mgr.reproduce(REPRO)
@@ -190,3 +193,26 @@ def test_scan_counts_zero_without_calling_semgrep_when_no_touched_file_exists(tm
 def test_touched_files_refuses_empty_or_escaping_diffs(diff):
     with pytest.raises(PatchError):
         touched_files(diff)
+
+
+def test_verify_builds_the_normalized_diff_but_hashes_the_agents_diff():
+    h = Harness()
+    (h.root / "old" / "lib" / "insecurity.ts").write_text("a\nx\nb\n")
+    bare = "```diff\n--- lib/insecurity.ts\n+++ lib/insecurity.ts\n@@\n-x\n+y\n```\n"
+    r = h.manager().verify_patch(bare, "rules: []", REPRO)
+    assert r["hash"] == diff_hash(bare)
+    assert h.built[1] == r["applied_diff"]
+    assert r["applied_diff"].startswith("--- a/lib/insecurity.ts\n+++ b/lib/insecurity.ts\n@@ -1,3 +1,3 @@\n")
+
+
+def test_an_invalid_rule_is_refused_with_semgreps_message_before_any_replica():
+    h = Harness()
+    with pytest.raises(PatchError, match="rule is invalid: mapping values are not allowed"):
+        h.manager(validate=lambda path: "mapping values are not allowed").verify_patch(DIFF, "y", REPRO)
+    assert h.built == []
+
+
+def test_the_rule_is_written_without_fences():
+    h = Harness()
+    h.manager().verify_patch(DIFF, "```yaml\nrules: [x]\n```", REPRO)
+    assert h.semgrep_calls[0][0] == "rules: [x]\n"

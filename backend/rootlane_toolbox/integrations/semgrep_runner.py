@@ -1,5 +1,6 @@
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 from collections.abc import Callable, Sequence
 
@@ -59,3 +60,30 @@ def run_semgrep(
     except json.JSONDecodeError as exc:
         raise RuntimeError("semgrep produced invalid JSON") from exc
     return {"findings": len(results), "results": results}
+
+
+RULE_ERROR_CHARS = 500
+
+
+def rule_errors(config_path: str, *, runner: Runner = _subprocess_runner) -> str | None:
+    """
+    Check that Semgrep can load a rule file, offline, by scanning an empty directory with it.
+
+    Args:
+        config_path (str): The rule file.
+        runner (Runner): Executes the command and returns (exit code, stdout).
+
+    Returns:
+        str | None: Semgrep's own error messages, truncated, or None when the rule loads.
+    """
+    with tempfile.TemporaryDirectory(prefix="rootlane-empty-") as empty:
+        args = ["semgrep", "--json", "--quiet", "--metrics=off", "--config", config_path, "--", empty]
+        code, stdout = runner(args, empty)
+    if code in (0, 1):
+        return None
+    try:
+        errors = json.loads(stdout).get("errors", [])
+    except (json.JSONDecodeError, AttributeError):
+        errors = []
+    messages = [e.get("message", "") for e in errors if e.get("level") == "error" and e.get("message")]
+    return ("; ".join(messages) or f"semgrep exited with code {code}")[:RULE_ERROR_CHARS]
