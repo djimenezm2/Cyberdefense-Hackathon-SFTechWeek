@@ -11,7 +11,8 @@
 FROM mirror.gcr.io/library/node:22-bookworm AS juiceshop-deps
 WORKDIR /juice-shop
 COPY juiceshop/juice-shop/ ./
-RUN npm ci --no-audit --no-fund
+RUN sed -i 's#"sbom": "cyclonedx-esbuild[^"]*"#"sbom": "echo skip-sbom"#' frontend/package.json
+RUN npm install --no-audit --no-fund
 
 # ---- runtime ----
 FROM mirror.gcr.io/library/python:3.12-slim-bookworm
