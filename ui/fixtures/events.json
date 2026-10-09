@@ -1,0 +1,5 @@
+[
+  {"ts": "2026-10-09T21:00:31.120Z", "trace_id": "a1f3", "method": "GET", "route": "/rest/products/search", "status": 200, "latency_ms": 18, "ip": "203.0.113.7", "principal_id": "", "auth_outcome": "none", "param_flags": []},
+  {"ts": "2026-10-09T21:00:31.410Z", "trace_id": "b7c2", "method": "GET", "route": "/rest/basket/:id", "status": 200, "latency_ms": 22, "ip": "198.51.100.23", "principal_id": "17", "auth_outcome": "accepted", "param_flags": []},
+  {"ts": "2026-10-09T21:00:32.002Z", "trace_id": "c9d4", "method": "POST", "route": "/rest/user/login", "status": 401, "latency_ms": 35, "ip": "198.51.100.23", "principal_id": "", "auth_outcome": "login_failure", "param_flags": ["meta_chars"]}
+]

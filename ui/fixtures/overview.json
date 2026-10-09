@@ -1,0 +1,11 @@
+{
+  "rps_series": [
+    {"t": "2026-10-09T21:00:00Z", "total": 42, "errors": 1, "auth_rejected": 0},
+    {"t": "2026-10-09T21:00:10Z", "total": 57, "errors": 2, "auth_rejected": 1},
+    {"t": "2026-10-09T21:00:20Z", "total": 61, "errors": 0, "auth_rejected": 0},
+    {"t": "2026-10-09T21:00:30Z", "total": 88, "errors": 5, "auth_rejected": 3}
+  ],
+  "open_incidents": 1,
+  "analyzer": {"last_window": "2026-10-09T21:00:30Z", "verdict": "escalate", "model": "akashml/glm"},
+  "agent": {"running": true, "incident_id": "inc_01"}
+}

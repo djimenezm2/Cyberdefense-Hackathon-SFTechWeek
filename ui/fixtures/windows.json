@@ -1,0 +1,4 @@
+[
+  {"window_start": "2026-10-09T21:00:20Z", "window_end": "2026-10-09T21:00:30Z", "verdict": "watch", "model": "akashml/glm", "rationale": "One IP with an unusual mix of failed logins; below threshold."},
+  {"window_start": "2026-10-09T21:00:30Z", "window_end": "2026-10-09T21:00:40Z", "verdict": "escalate", "model": "akashml/glm", "rationale": "Authenticated responses for an identity that never logged in, from the same IP."}
+]

@@ -1,0 +1,3 @@
+[
+  {"id": "inc_01", "title": "Requests served for an identity that never authenticated", "status": "pending_approval", "severity": "high", "category": "identity", "opened_at": "2026-10-09T21:00:41Z"}
+]

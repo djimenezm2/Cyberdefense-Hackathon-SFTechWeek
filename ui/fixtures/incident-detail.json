@@ -1,0 +1,44 @@
+{
+  "id": "inc_01",
+  "title": "Requests served for an identity that never authenticated",
+  "status": "pending_approval",
+  "severity": "high",
+  "category": "identity",
+  "opened_at": "2026-10-09T21:00:41Z",
+  "guild_session_id": "gs_9c1",
+  "summary": "Authenticated endpoints answered 200 for a principal with no prior login from this client.",
+  "timeline": [
+    {"ts": "2026-10-09T21:00:33Z", "method": "GET", "route": "/rest/basket/:id", "status": 200, "principal_id": "22", "ip": "198.51.100.23", "note": "no prior login for principal 22"},
+    {"ts": "2026-10-09T21:00:36Z", "method": "GET", "route": "/api/Cards", "status": 200, "principal_id": "22", "ip": "198.51.100.23", "note": null}
+  ],
+  "steps": [
+    {"ts": "2026-10-09T21:00:45Z", "kind": "query", "summary": "Pulled 40 requests from the window for IP 198.51.100.23", "outcome": "ok"},
+    {"ts": "2026-10-09T21:00:49Z", "kind": "context", "summary": "Senso: auth policy requires signature verification with a pinned algorithm", "outcome": "ok"},
+    {"ts": "2026-10-09T21:00:52Z", "kind": "semgrep", "summary": "2 findings in lib/insecurity.ts", "outcome": "ok"},
+    {"ts": "2026-10-09T21:01:40Z", "kind": "verify", "summary": "Replica: issue reproduced before patch, closed after; regression 6/6", "outcome": "ok"},
+    {"ts": "2026-10-09T21:01:44Z", "kind": "propose", "summary": "Proposal p_3e7a ready for approval", "outcome": "ok"}
+  ],
+  "hypothesis": {
+    "text": "Credential verification does not pin the expected algorithm, so the server resolves identities it never authenticated.",
+    "evidence": [
+      {"kind": "event", "ref": "trace c9d4", "text": "200 on /rest/basket/:id for principal 22 with no login"},
+      {"kind": "code", "ref": "lib/insecurity.ts:54", "text": "verification call without an algorithm allow-list"},
+      {"kind": "context", "ref": "senso:auth-policy", "text": "Policy: tokens must be verified with a pinned algorithm"}
+    ]
+  },
+  "verification": {
+    "replica_before": {"status": 200, "summary": "issue reproduced"},
+    "replica_after": {"status": 401, "summary": "request rejected"},
+    "regression": {"passed": 6, "failed": 0},
+    "semgrep_old": 2,
+    "semgrep_new": 0
+  },
+  "proposal": {
+    "proposal_hash": "p_3e7a",
+    "diff": "--- a/lib/insecurity.ts\n+++ b/lib/insecurity.ts\n@@ -54 +54 @@\n-  verify(token)\n+  verify(token, { algorithms: ['RS256'] })\n",
+    "rule_yaml": "rules:\n  - id: rootlane-unpinned-token-verification\n    message: Token verification without an algorithm allow-list\n    severity: ERROR\n    languages: [typescript]\n    pattern: verify($T)\n",
+    "report": "Root cause, evidence and verification summary written by the agent."
+  },
+  "approval": null,
+  "apply": null
+}
