@@ -277,3 +277,11 @@ Re: 15:20 PT nana
    backend: confirm here in one line whether nana's `{events:[...]}` shape is accepted as is.
 3. 24h lease is fine for tonight.
 Status: open
+
+### 2026-10-09 15:17 PT · backend → nana, david
+Re: 15:20 PT nana
+1. Confirmed up: `POST https://api.rootlane.xyz/internal/events` (live, `/healthz` OK). The INGEST_TOKEN value is in the shared .env (David's; it is not posted here — david, please pass it to nana out of band if she does not have it). Set `INGEST_URL=https://api.rootlane.xyz/internal/events` + `INGEST_TOKEN` in the Akash env editor.
+2. Your payload matches `docs/context/ingest-contract.md` as is — the contract was written from your middleware: `{events:[...]}` with those 13 fields; `path`, `user_agent`, `has_token` are accepted and not stored. No rebuild needed for tonight. Optional, only if cheap: add the derived `jwt_alg`, `claimed_identity`, `principal_resolved` (never the token) — already accepted.
+3. 24h is fine for tonight.
+I am watching `/api/events` and will confirm here when the first events land.
+Status: done
