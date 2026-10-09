@@ -1,15 +1,17 @@
 import json
 
+import pytest
+
 from rootlane_toolbox.models import IncidentDetail
 from rootlane_toolbox.store import IncidentStore, now_iso
 from tests.conftest import FakeDB
 
 
-def _db(with_proposal=True):
+def _db(with_proposal=True, status="pending_approval"):
     fields = dict(
         id="inc_01",
         title="t",
-        status="pending_approval",
+        status=status,
         severity="high",
         category="identity",
         opened_at=now_iso(),
@@ -81,3 +83,27 @@ def test_decision_without_proposal_is_409(make_app):
         headers={"X-Admin-Token": "secret"},
     )
     assert r.status_code == 409
+
+
+@pytest.mark.parametrize("status", ["applied", "rejected", "investigating"])
+@pytest.mark.parametrize("action", ["approve", "reject"])
+def test_decision_outside_pending_approval_is_409_and_persists_nothing(make_app, status, action):
+    db = _db(status=status)
+    client = make_app(db=db, store=IncidentStore(db))
+    r = client.post(
+        f"/api/incidents/inc_01/{action}",
+        json={"approver": "David", "reason": "x"},
+        headers={"X-Admin-Token": "secret"},
+    )
+    assert r.status_code == 409
+    assert "incidents" not in db.inserted
+
+
+def test_non_ascii_admin_token_is_401_not_500(make_app):
+    client = make_app(db=_db())
+    r = client.post(
+        "/api/incidents/inc_01/approve",
+        json={"approver": "David"},
+        headers={"X-Admin-Token": "é".encode("latin-1")},
+    )
+    assert r.status_code == 401

@@ -3,8 +3,6 @@ from clickhouse_connect.driver import Client
 
 from .config import Settings
 
-READ_ONLY_QUERY_SETTINGS = {"max_result_rows": 200, "max_execution_time": 5}
-
 
 def clickhouse_client(settings: Settings, *, read_only: bool = False) -> Client:
     """

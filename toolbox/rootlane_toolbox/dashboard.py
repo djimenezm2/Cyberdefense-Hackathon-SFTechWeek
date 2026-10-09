@@ -18,7 +18,7 @@ from .models import (
     RpsPoint,
     Window,
 )
-from .store import IncidentStore, _z, now_iso
+from .store import IncidentStore, _z, now_iso, parse_iso
 
 dashboard_router = APIRouter()
 
@@ -103,12 +103,17 @@ def overview(db=Depends(get_db), store: IncidentStore = Depends(get_store)):
 
 
 @dashboard_router.get("/api/events", response_model=list[Event])
-def events(since: str | None = None, limit: int = Query(100, le=500), db=Depends(get_db)):
+def events(since: str | None = None, limit: int = Query(100, ge=1, le=500), db=Depends(get_db)):
+    if since is not None:
+        try:
+            parse_iso(since)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="since must be an ISO-8601 timestamp")
     return read_events(db, since, limit)
 
 
 @dashboard_router.get("/api/windows", response_model=list[Window])
-def windows(limit: int = Query(20, le=100), db=Depends(get_db)):
+def windows(limit: int = Query(20, ge=1, le=100), db=Depends(get_db)):
     return read_windows(db, limit)
 
 
@@ -135,7 +140,9 @@ def require_admin_token(
 ) -> None:
     """Reject the request unless X-Admin-Token matches the configured admin token."""
     expected = settings.admin_token
-    if not expected or not x_admin_token or not hmac.compare_digest(x_admin_token, expected):
+    if not expected or not x_admin_token:
+        raise HTTPException(status_code=401, detail="bad admin token")
+    if not hmac.compare_digest(x_admin_token.encode(), expected.encode()):
         raise HTTPException(status_code=401, detail="bad admin token")
 
 
@@ -143,6 +150,8 @@ def _decide(incident_id: str, store: IncidentStore, approver: str, decision: str
     detail = store.get(incident_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="incident not found")
+    if detail.status != "pending_approval":
+        raise HTTPException(status_code=409, detail=f"incident is {detail.status}, not pending_approval")
     if detail.proposal is None:
         raise HTTPException(status_code=409, detail="no proposal to decide")
     detail.approval = Approval(

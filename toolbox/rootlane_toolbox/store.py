@@ -131,8 +131,8 @@ class IncidentStore:
     def open_count(self) -> int:
         """Count incidents whose status is not terminal."""
         res = self._client.query(
-            "SELECT count() FROM incidents FINAL WHERE status NOT IN "
-            "('applied','rejected','not_reproduced')"
+            "SELECT count() FROM incidents FINAL WHERE status NOT IN {terminal:Array(String)}",
+            parameters={"terminal": sorted(TERMINAL)},
         )
         return int(res.result_rows[0][0]) if res.result_rows else 0
 

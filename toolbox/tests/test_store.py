@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from rootlane_toolbox.models import Action, IncidentDetail
-from rootlane_toolbox.store import IncidentStore, now_iso, parse_iso
+from rootlane_toolbox.store import TERMINAL, IncidentStore, now_iso, parse_iso
 
 
 class Result:
@@ -95,3 +95,9 @@ def test_now_iso_is_utc_z_with_milliseconds():
 def test_parse_iso_round_trips_z_strings():
     parsed = parse_iso("2026-10-09T21:00:41.120Z")
     assert parsed == datetime(2026, 10, 9, 21, 0, 41, 120000, tzinfo=timezone.utc)
+
+
+def test_open_count_excludes_every_terminal_status():
+    client = FakeClient(rows=[[0]])
+    IncidentStore(client).open_count()
+    assert set(client.queries[0][1]["terminal"]) == set(TERMINAL)

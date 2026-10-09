@@ -70,3 +70,15 @@ def test_windows_and_actions_lists(make_app):
     client = make_app(db=db, store=IncidentStore(db))
     assert client.get("/api/windows").json()[0]["verdict"] == "watch"
     assert client.get("/api/actions").json()[0]["operation"] == "query_events"
+
+
+def test_limit_below_one_is_422(make_app):
+    client = make_app()
+    assert client.get("/api/events?limit=0").status_code == 422
+    assert client.get("/api/windows?limit=0").status_code == 422
+
+
+def test_unparsable_since_is_422(make_app):
+    client = make_app()
+    assert client.get("/api/events?since=not-a-time").status_code == 422
+    assert client.get("/api/events?since=2026-10-09T21:00:31.120Z").status_code == 200

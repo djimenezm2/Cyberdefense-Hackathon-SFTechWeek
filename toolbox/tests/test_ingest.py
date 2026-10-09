@@ -126,3 +126,9 @@ def test_auth_fields_populate_auth_events(make_app):
 def test_non_json_object_payload_is_422(make_app):
     client = make_app(settings=_settings())
     assert _post(client, "just a string").status_code == 422
+
+
+def test_non_ascii_bearer_is_401_not_500(make_app):
+    client = make_app(settings=_settings())
+    headers = {"Authorization": "Bearer ".encode() + "é".encode("latin-1")}
+    assert _post(client, {"events": [_event()]}, headers=headers).status_code == 401
