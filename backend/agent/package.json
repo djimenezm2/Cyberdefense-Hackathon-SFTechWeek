@@ -1,0 +1,1 @@
+{"name": "rootlane-agent-tests", "private": true, "type": "module", "scripts": {"test": "tsx --test test/*.test.ts"}, "devDependencies": {"tsx": "4.23.15"}}
