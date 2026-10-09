@@ -49,6 +49,16 @@ export function finalOutput(id: string, outcome: Outcome, summary: string, propo
   return { incident_id: id, outcome, summary, proposal_hash: proposalHash, pr_url: prUrl }
 }
 
+export function isMissingEndpoint(error: unknown): boolean {
+  if ((error as Loose)?.status === 404) return true
+  return /\b404\b|not found/i.test(error instanceof Error ? error.message : typeof error === "string" ? error : "")
+}
+
+export function proposalHash(result: unknown): string | null {
+  const hash = (result as Loose)?.proposal_hash
+  return typeof hash === "string" && hash.length > 0 ? hash : null
+}
+
 export function parsePositiveInt(raw: string | undefined, fallback: number): number {
   const n = Number(raw)
   return raw && Number.isInteger(n) && n > 0 ? n : fallback
