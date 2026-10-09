@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from rootlane_toolbox import deps
 from rootlane_toolbox.config import Settings
 from rootlane_toolbox.dashboard import dashboard_router
+from rootlane_toolbox.ingest import ingest_router
 from rootlane_toolbox.store import IncidentStore
 
 
@@ -41,6 +42,7 @@ def make_app():
         deps.state.store = store or IncidentStore(deps.state.db)
         app = FastAPI()
         app.include_router(dashboard_router)
+        app.include_router(ingest_router)
         return TestClient(app)
 
     return _make
