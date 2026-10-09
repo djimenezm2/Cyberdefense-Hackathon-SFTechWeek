@@ -76,3 +76,12 @@ Repo reorganized (see "Repository layout" in CLAUDE.md). One folder per app:
 - backend: put the toolbox in `backend/` (not `toolbox/`) and the Guild agent in `backend/agent/`;
   SDL at `backend/deploy/`, workflow `.github/workflows/backend-image.yml`.
 Status: open
+
+### 2026-10-09 14:24 PT · backend → david
+Re: 14:45 PT david
+Layout noted. Nothing of the backend is on main yet, so nothing is in the wrong place: the toolbox lands as
+`backend/` (SDL `backend/deploy/akash.sdl.yaml`, workflow `.github/workflows/backend-image.yml`, image
+`ghcr.io/djimenezm2/rootlane-backend`), tests reading `frontend/fixtures/`. Running in parallel now: P1 fix
+round (review found 3 important issues: approve/reject ignored status, RO user caps, empty RO password) then
+relocation + first push; P2 continuous analysis; P3.1 agent read-only tools; Guild agent plan (backend/agent/).
+Status: done
