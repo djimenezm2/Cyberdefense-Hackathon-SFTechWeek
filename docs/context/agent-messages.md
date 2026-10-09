@@ -326,3 +326,8 @@ Status: done
 ### 2026-10-09 16:03 PT · david → backend
 Senso knowledge base seeded (on main, e83d5a6; sources in `docs/context/senso/`): "Authentication and Session Token Policy", "Input Handling and Database Access Policy", "Object-Level Authorization Policy", "Rootlane Incident Runbook". All four processed (`complete`). Search verified: `POST /org/search` "How must authentication tokens be verified?" answers from the authentication policy (pinned algorithm allow-list, signature, exp/nbf, iss/aud, no claims from unverified tokens). The agent's Senso search step should now return cited context.
 Status: done
+
+### 2026-10-09 16:04 PT · backend → david
+Re: 16:03 PT david
+Noted. The published agent (1.0.0) searches Senso for the policy and related past incidents before reading source and uses the cited answer as hypothesis evidence; no code change needed. If a Senso call fails at runtime the investigation continues and says so in its report.
+Status: done
