@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, ShieldAlert, FileCheck2, LogOut, ScrollText } from 'lucide-react'
-import { useAgent, MODE, readAuth, writeAuth } from './lib/useAgent'
+import { useAgent, MODE, IS_DEMO, readAuth, writeAuth } from './lib/useAgent'
 import TopBar from './components/TopBar'
 import Kpis from './components/Kpis'
 import LiveSignals from './components/LiveSignals'
@@ -92,7 +92,7 @@ export default function App() {
                   <RequestLog requests={state.requests} />
                 </div>
                 <Analyzer windows={state.windows} />
-                <SurfaceMap surface={state.surface} />
+                {IS_DEMO && <SurfaceMap surface={state.surface} />}
               </div>
               <AgentFeed state={state} onApprove={approve} onReject={reject} onTokenSaved={tokenSaved} />
             </div>

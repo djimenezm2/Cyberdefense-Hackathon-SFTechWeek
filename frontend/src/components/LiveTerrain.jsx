@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { IS_DEMO } from '../lib/useAgent'
 
 /*
   LIVE TERRAIN (inspirado en Greptile TREX)
@@ -242,7 +243,7 @@ export default function LiveTerrain({ state, bare = false }) {
   }, [])
 
   const incident = Object.values(state.incidents).find((x) => ['investigating', 'pending_approval', 'applying'].includes(x.status))
-  const bad = state.surface.filter((a) => a.status !== 'ok')
+  const bad = IS_DEMO ? state.surface.filter((a) => a.status !== 'ok') : []
   if (bare) return (
     <div ref={wrap} className="absolute inset-0">
       <canvas ref={canvas} className="absolute inset-0" aria-hidden="true" />
@@ -255,19 +256,21 @@ export default function LiveTerrain({ state, bare = false }) {
     : incident
     ? { text: incident.title, tone: 'text-bad' }
     : bad.length ? { text: `${bad.length} asset needs attention`, tone: 'text-warn' }
-    : { text: 'Every service running clean', tone: 'text-mute-100' }
+    : IS_DEMO ? { text: 'Every service running clean', tone: 'text-mute-100' }
+    : { text: 'No open incidents', tone: 'text-mute-100' }
   const sub = paused
     ? 'Rootlane cannot see new attacks until you turn constant review back on.'
     : incident
-    ? (incident.status === 'pending_approval' ? `Fix proven on a replica for ${incident.target}. One approval ships it.` : incident.status === 'applying' ? `Applying the approved fix to production…` : `Rootlane is investigating ${incident.target} on its own.`)
-    : `Watching ${state.surface.length} assets in ${state.summary.repo} and ${state.summary.infra}, live.`
+    ? (incident.status === 'pending_approval' ? (IS_DEMO || incident.verification?.replica_after ? `Fix proven on a replica for ${incident.target}. One approval ships it.` : `A fix for ${incident.target} is waiting for approval.`) : incident.status === 'applying' ? `Applying the approved fix to production…` : `Rootlane is investigating ${incident.target} on its own.`)
+    : IS_DEMO ? `Watching ${state.surface.length} assets in ${state.summary.repo} and ${state.summary.infra}, live.`
+    : state.connected ? `Reading request events from ${state.summary.infra}.` : 'The Rootlane API is not reachable right now.'
 
   return (
     <section className="panel relative overflow-hidden">
       <div ref={wrap} className="relative h-[400px] w-full sm:h-[440px]">
         <canvas ref={canvas} className="absolute inset-0" aria-label="Live map of services, traffic and the Rootlane agent" role="img" />
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center px-4 pt-6 text-center">
-          <div className="font-mono text-[12px] tracking-[0.3em] text-mute-300">[ ROOTLANE · LIVE ]</div>
+          <div className="font-mono text-[12px] tracking-[0.3em] text-mute-300">{IS_DEMO || state.connected ? '[ ROOTLANE · LIVE ]' : '[ ROOTLANE · OFFLINE ]'}</div>
           <AnimatePresence mode="wait">
             <motion.h2 key={headline.text} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
               className={`mt-2 max-w-[22ch] text-[28px] font-semibold leading-[1.05] tracking-[-0.03em] sm:max-w-none sm:text-[40px] ${headline.tone}`}

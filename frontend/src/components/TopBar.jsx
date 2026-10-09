@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GitBranch, Cloud, Zap, Radio } from 'lucide-react'
 import { STATUS_COPY } from '../lib/contract'
 import { toneBg, toneText } from '../lib/format'
+import { IS_DEMO } from '../lib/useAgent'
 
 export function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now())
@@ -28,6 +29,7 @@ export default function TopBar({ state, onToggleReview }) {
   const s = STATUS_COPY[state.status] ?? STATUS_COPY.watching
   const secs = Math.max(0, Math.round((now - state.lastScan) / 1000))
   const busy = !['watching', 'paused'].includes(state.status)
+  const claim = IS_DEMO ? 'Proven on a replica · 1 approval to ship' : liveClaim(state.incidents)
 
   return (
     <header className="sticky top-0 z-30 border-b border-ink-700 bg-ink-950/85 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -59,13 +61,15 @@ export default function TopBar({ state, onToggleReview }) {
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          <span className={`hidden items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] xl:flex border-agent/30 text-agent`}>
-            <Zap className="h-3.5 w-3.5" />
-            Proven on a replica · 1 approval to ship
-          </span>
+          {claim && (
+            <span className={`hidden items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] xl:flex border-agent/30 text-agent`}>
+              <Zap className="h-3.5 w-3.5" />
+              {claim}
+            </span>
+          )}
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-mute-400">
             <Radio className={`h-3.5 w-3.5 ${state.connected ? 'text-ok' : 'text-bad'}`} />
-            {state.mode === 'demo' ? 'DEMO' : !state.connected ? 'OFFLINE' : state.streaming ? 'LIVE' : 'LIVE · polling'}
+            {IS_DEMO ? 'DEMO' : !state.connected ? 'OFFLINE' : state.streaming ? 'LIVE' : 'LIVE · polling'}
           </span>
           <div className="relative">
             <button role="switch" aria-checked={state.monitoring}
@@ -74,15 +78,15 @@ export default function TopBar({ state, onToggleReview }) {
               <span className={`relative h-4 w-7 rounded-full ${state.monitoring ? 'bg-ink-950/25' : 'bg-ink-950/60'}`}>
                 <span className={`absolute top-0.5 h-3 w-3 rounded-full transition-all ${state.monitoring ? 'left-[14px] bg-ink-950' : 'left-0.5 bg-mute-400'}`} />
               </span>
-              Constant review {state.monitoring ? 'ON' : 'OFF'}
+              {IS_DEMO ? 'Constant review' : 'Live view'} {state.monitoring ? 'ON' : 'OFF'}
             </button>
             {askPause && (
               <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-ink-600 bg-ink-850 p-4 shadow-2xl">
-                <p className="text-sm font-medium text-mute-100">Pause constant review?</p>
-                <p className="mt-1 text-xs leading-relaxed text-mute-400">This dashboard stops following live activity. The agent keeps working in the background.</p>
+                <p className="text-sm font-medium text-mute-100">{IS_DEMO ? 'Pause constant review?' : 'Pause the live view?'}</p>
+                <p className="mt-1 text-xs leading-relaxed text-mute-400">{IS_DEMO ? 'This dashboard stops following live activity. The agent keeps working in the background.' : 'This dashboard stops following live activity.'}</p>
                 <div className="mt-3 flex justify-end gap-2">
                   <button onClick={() => setAskPause(false)} className="btn px-2.5 py-1 text-xs text-mute-300 hover:text-mute-100">Keep it on</button>
-                  <button onClick={() => { setAskPause(false); onToggleReview(false) }} className="btn bg-bad/90 px-2.5 py-1 text-xs text-white hover:bg-bad">Pause review</button>
+                  <button onClick={() => { setAskPause(false); onToggleReview(false) }} className="btn bg-bad/90 px-2.5 py-1 text-xs text-white hover:bg-bad">{IS_DEMO ? 'Pause review' : 'Pause view'}</button>
                 </div>
               </div>
             )}
@@ -91,6 +95,15 @@ export default function TopBar({ state, onToggleReview }) {
       </div>
     </header>
   )
+}
+
+// Live-mode badge, built only from the newest open incident the API reported.
+function liveClaim(incidents) {
+  const open = Object.values(incidents).filter((i) => ['investigating', 'pending_approval', 'applying'].includes(i.status)).sort((a, b) => b.ts - a.ts)[0]
+  if (!open) return 'No open incidents'
+  if (open.status === 'investigating') return 'Investigating'
+  if (open.status === 'applying') return 'Applying the approved fix'
+  return open.verification?.replica_after ? 'Fix verified on a replica · awaiting approval' : 'Fix ready · awaiting approval'
 }
 
 function Chip({ icon: Icon, children }) {

@@ -9,6 +9,8 @@ import { createMockStream, pastIncident, seedEvents, seedWindows, SURFACE, ROUTE
 
 export const API_URL = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 export const MODE = API_URL ? 'live' : 'demo'
+// Build-time flag so demo-only copy is dropped from live bundles.
+export const IS_DEMO = !(import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL)
 
 const AUTH_KEY = 'rootlane.admin'
 export function readAuth() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)) ?? { name: '', token: '' } } catch { return { name: '', token: '' } } }
@@ -35,7 +37,7 @@ function makeInitial() {
     metrics: demo ? seedMetrics() : [],
     summary: {
       repo: 'djimenezm2/juice-shop', infra: 'juiceshop.rootlane.xyz',
-      openIncidents: 0, analyzer: { verdict: 'ignore', model: 'akashml/glm', lastWindow: Date.now() }, agentRunning: false,
+      openIncidents: 0, analyzer: demo ? { verdict: 'ignore', model: 'akashml/glm', lastWindow: Date.now() } : null, agentRunning: false,
     },
     requests: demo ? seedEvents().map(adaptEvent).reverse() : [],
     windows: demo ? seedWindows().map(adaptWindow) : [],

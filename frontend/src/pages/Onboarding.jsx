@@ -5,6 +5,9 @@ import CodeCurtain from '../components/ui/code-curtain'
 import { API_URL, MODE, readAuth, writeAuth } from '../lib/useAgent'
 import { ENDPOINTS, GUARDRAILS } from '../lib/contract'
 
+// GitHub sign-in is offered only once its OAuth app is configured.
+const GITHUB_AUTH = import.meta.env.VITE_GITHUB_AUTH === 'true'
+
 const STEPS = ['Sign in', 'Sources', 'Turn on review']
 
 // Lo que Rootlane vigila en este proyecto (docs/context/infrastructure.md)
@@ -55,7 +58,7 @@ export default function Onboarding({ state, onFinish }) {
 
   // Live mode: if the GitHub session cookie exists, skip the sign-in step
   useEffect(() => {
-    if (MODE !== 'live') return
+    if (MODE !== 'live' || !GITHUB_AUTH) return
     if (location.search.includes('auth=')) history.replaceState(null, '', location.pathname)
     fetch('/api/auth?a=me', { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
@@ -181,7 +184,7 @@ export default function Onboarding({ state, onFinish }) {
               className="rounded-2xl border border-ink-600 bg-ink-900 p-5 shadow-2xl">
 
               {step === 0 && (
-                MODE === 'live' && !useToken ? (
+                GITHUB_AUTH && MODE === 'live' && !useToken ? (
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-lg font-semibold">Sign in to Rootlane</h2>

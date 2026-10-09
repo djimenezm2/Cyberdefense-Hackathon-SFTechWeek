@@ -8,7 +8,7 @@ const VERDICT = {
 export default function Kpis({ state }) {
   const last = state.metrics.at(-1) ?? { total: 0, errors: 0, authRejected: 0 }
   const s = state.summary
-  const v = VERDICT[s.analyzer?.verdict] ?? VERDICT.ignore
+  const v = VERDICT[s.analyzer?.verdict] ?? { t: '—', c: 'text-mute-400' }
   const items = [
     { label: 'Requests · last 10 s', value: last.total },
     { label: 'Errors', value: last.errors, tone: last.errors > 3 ? 'text-warn' : '' },
