@@ -45,7 +45,9 @@ class Analyzer:
         end_dt = now - timedelta(seconds=INGEST_DELAY_S)
         start_dt = self._last_end or end_dt - timedelta(seconds=self._settings.analyze_interval_s)
         start, end = _z(start_dt), _z(end_dt)
-        features = compute_features(self._db, start, end)
+        features = compute_features(
+            self._db, start, end, self._settings.escalate_login_lookback_s
+        )
         if features["principals"] or features["ips"]:
             decision, decided = self._decide(features)
             if features["unauthenticated_principals"]:

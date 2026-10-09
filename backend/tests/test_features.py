@@ -77,7 +77,7 @@ def test_unauthenticated_principals_rule_feature_and_parameters():
             return super().query(sql, parameters)
 
     db = SpyDB(responses={"login_ts": [["p9", "10.0.0.9"]]})
-    f = compute_features(db, "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
+    f = compute_features(db, "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z", login_lookback_s=120)
     assert f["unauthenticated_principals"] == [{"principal_id": "p9", "ip": "10.0.0.9"}]
     sql, params = next(q for q in seen if "login_ts" in q[0])
     assert "auth_outcome = 'login_success'" in sql and "LIMIT 20" in sql
@@ -86,4 +86,6 @@ def test_unauthenticated_principals_rule_feature_and_parameters():
         "start": "2026-10-09 21:00:30.000",
         "end": "2026-10-09 21:00:40.000",
         "lookback": "2026-10-08 21:00:30.000",
+        "login_s": 120,
     }
+    assert "subtractSeconds" in sql and "{login_s:UInt32}" in sql

@@ -239,3 +239,19 @@ def test_no_rule_hit_keeps_the_decider_verdict():
     a, db, _, _ = _analyzer("ignore", None)
     a.run_once(now=NOW)
     assert db.inserted["analyzer_windows"][0][2] == "ignore"
+
+
+def test_analyzer_passes_the_escalate_login_lookback_to_the_features():
+    seen = []
+
+    class SpyDB(FakeDB):
+        def query(self, sql, parameters=None):
+            seen.append(parameters)
+            return super().query(sql, parameters)
+
+    db = SpyDB(responses=BUSY)
+    broker = SpyBroker()
+    a = Analyzer(Settings(escalate_login_lookback_s=45), db, IncidentStore(db, broker=broker),
+                 StubDecider("watch"), SpyGuild(None), broker)
+    a.run_once(now=NOW)
+    assert any(p and p.get("login_s") == 45 for p in seen)

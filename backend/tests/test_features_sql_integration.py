@@ -59,29 +59,37 @@ def test_new_principal_flags_only_principals_unseen_before_the_window():
 
 
 @pytest.mark.skipif(not os.environ.get("CLICKHOUSE_HOST"), reason="needs live ClickHouse")
-def test_unauthenticated_principals_flags_only_clients_without_a_prior_login():
+def test_unauthenticated_principals_uses_a_short_login_lookback():
     from datetime import datetime, timezone
 
     client = clickhouse_client(Settings.from_env(os.environ))
     trace = "p2-unauth-test"
 
-    def row(second, ip, principal, outcome, route="/x"):
-        ts = datetime(2020, 1, 1, 0, 0, second, tzinfo=timezone.utc)
+    def row(minute, second, ip, principal, outcome, route="/x"):
+        ts = datetime(2020, 1, 1, 0, minute, second, tzinfo=timezone.utc)
         return [ts, trace, "GET", route, 200, 1, ip, principal, outcome, []]
 
+    login = "/rest/user/login"
     client.insert(
         "http_requests",
         [
-            row(31, "198.51.100.31", "", "login_success", "/rest/user/login"),
-            row(33, "198.51.100.31", "p2-p1", "accepted"),
-            row(34, "198.51.100.32", "p2-p2", "accepted"),
+            row(0, 25, "198.51.100.31", "", "login_success", login),
+            row(0, 35, "198.51.100.31", "p2-recent", "accepted"),
+            row(0, 0, "198.51.100.32", "", "login_success", login),
+            row(5, 0, "198.51.100.32", "p2-stale", "accepted"),
+            row(5, 1, "198.51.100.33", "p2-nologin", "accepted"),
         ],
         column_names=_COLS,
     )
     try:
-        f = compute_features(client, "2020-01-01T00:00:30Z", "2020-01-01T00:01:00Z")
-        assert f["unauthenticated_principals"] == [
-            {"principal_id": "p2-p2", "ip": "198.51.100.32"}
-        ]
+        f = compute_features(
+            client, "2020-01-01T00:04:30Z", "2020-01-01T00:06:00Z", login_lookback_s=120
+        )
+        hits = {p["principal_id"] for p in f["unauthenticated_principals"]}
+        assert hits == {"p2-stale", "p2-nologin"}
+        f = compute_features(
+            client, "2020-01-01T00:00:30Z", "2020-01-01T00:01:00Z", login_lookback_s=120
+        )
+        assert f["unauthenticated_principals"] == []
     finally:
         client.command(f"ALTER TABLE http_requests DELETE WHERE trace_id = '{trace}'")
