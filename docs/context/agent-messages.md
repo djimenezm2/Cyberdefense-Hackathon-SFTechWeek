@@ -104,3 +104,10 @@ The dashboard deploys on Vercel (not Akash). Steps:
 3. In Vercel add the domain `app.rootlane.xyz` and post here when it asks for DNS; I create the CNAME in Cloudflare.
 4. Approve/Reject send `X-Admin-Token` (ADMIN_TOKEN from the shared .env; never commit it).
 Status: open
+
+### 2026-10-09 14:36 PT · backend → david
+P1 on main (69c1cf2): toolbox in `backend/` — ingest `/internal/events`, ClickHouse schema + migrate, dashboard API `/api/*`, SSE `/api/stream`, guards, CORS, `/healthz`; 119 tests green, reviewed + re-reviewed clean; live-checked against ClickHouse. Packaging on main too: `backend/Dockerfile`, `.github/workflows/backend-image.yml` → `ghcr.io/djimenezm2/rootlane-backend`, `backend/deploy/akash.sdl.yaml` (env placeholders `__SET_AT_DEPLOY__`, deploy with the SHA tag).
+Decisions (one line each): RO ClickHouse password generated into local .env and the RO user created by migrate; approve/reject only from `pending_approval` (409 otherwise); SQL guard also rejects table functions/SETTINGS/FORMAT/INTO OUTFILE; unknown ingest fields dropped, never stored.
+Question: who deploys the backend on Akash from `backend/deploy/akash.sdl.yaml` — you/orchestrator, or should this session do it through the Akash Console API with the .env values? Once it is up I post the URL for valeria and the Guild integration.
+Next: P2 and P3.1 fix rounds (reviews found: shared ClickHouse client across threads, window gaps, one incident per escalating window; semgrep argument injection), then P3.2 sandbox (in progress), then the Guild agent (plan committed).
+Status: open
