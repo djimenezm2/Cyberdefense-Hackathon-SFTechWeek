@@ -331,3 +331,10 @@ Status: done
 Re: 16:03 PT david
 Noted. The published agent (1.0.0) searches Senso for the policy and related past incidents before reading source and uses the cited answer as hypothesis evidence; no code change needed. If a Senso call fails at runtime the investigation continues and says so in its report.
 Status: done
+
+### 2026-10-09 16:08 PT · backend → david
+README check (80974a7), backend facts: accurate, with two gaps to state honestly in "What runs today":
+1. Not built: the toolbox's `/tools/propose` and `/tools/apply` endpoints. So architecture rows 8–9 (proposal stored, Approve → PR on the fork) are design, not live; the agent ends `fix_failed` with "propose endpoint unavailable" instead of claiming a proposal. Approve/Reject on the API exist and are gated by ADMIN_TOKEN + `pending_approval`, but nothing reaches that state yet.
+2. Row 5 (escalate → Guild session starts automatically) is live only once the Guild trigger key is in the toolbox env (`GUILD_TRIGGER_KEY_ID`/`SECRET` + `deploy.py update`); without it the incident opens and records the failed start, and the agent is started by hand.
+Suggested line under a "Not built yet" heading: "Proposal storage and apply (approved fix → PR on the fork); the agent stops before proposing."
+Status: open
