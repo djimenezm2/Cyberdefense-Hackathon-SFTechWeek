@@ -1,18 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import hmac
 
-from .deps import get_db, get_store
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+
+from .deps import get_db, get_settings, get_store
 from .models import (
     Action,
     AgentState,
+    AgentStep,
     AnalyzerState,
+    Approval,
+    ApproveBody,
     Event,
     IncidentDetail,
     IncidentSummary,
     Overview,
+    RejectBody,
     RpsPoint,
     Window,
 )
-from .store import IncidentStore, _z
+from .store import IncidentStore, _z, now_iso
 
 dashboard_router = APIRouter()
 
@@ -122,3 +128,51 @@ def incident_detail(incident_id: str, store: IncidentStore = Depends(get_store))
 @dashboard_router.get("/api/actions", response_model=list[Action])
 def actions(incident_id: str | None = None, store: IncidentStore = Depends(get_store)):
     return store.list_actions(incident_id)
+
+
+def require_admin_token(
+    x_admin_token: str | None = Header(default=None), settings=Depends(get_settings)
+) -> None:
+    """Reject the request unless X-Admin-Token matches the configured admin token."""
+    expected = settings.admin_token
+    if not expected or not x_admin_token or not hmac.compare_digest(x_admin_token, expected):
+        raise HTTPException(status_code=401, detail="bad admin token")
+
+
+def _decide(incident_id: str, store: IncidentStore, approver: str, decision: str, reason):
+    detail = store.get(incident_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="incident not found")
+    if detail.proposal is None:
+        raise HTTPException(status_code=409, detail="no proposal to decide")
+    detail.approval = Approval(
+        approver=approver,
+        decision=decision,
+        ts=now_iso(),
+        reason=reason,
+        proposal_hash=detail.proposal.proposal_hash,
+    )
+    detail.status = "applying" if decision == "approve" else "rejected"
+    detail.steps.append(
+        AgentStep(ts=now_iso(), kind="approval", summary=f"{decision} by {approver}", outcome="ok")
+    )
+    store.put(detail)
+    return detail
+
+
+@dashboard_router.post(
+    "/api/incidents/{incident_id}/approve",
+    response_model=IncidentDetail,
+    dependencies=[Depends(require_admin_token)],
+)
+def approve(incident_id: str, body: ApproveBody, store: IncidentStore = Depends(get_store)):
+    return _decide(incident_id, store, body.approver, "approve", None)
+
+
+@dashboard_router.post(
+    "/api/incidents/{incident_id}/reject",
+    response_model=IncidentDetail,
+    dependencies=[Depends(require_admin_token)],
+)
+def reject(incident_id: str, body: RejectBody, store: IncidentStore = Depends(get_store)):
+    return _decide(incident_id, store, body.approver, "reject", body.reason)
