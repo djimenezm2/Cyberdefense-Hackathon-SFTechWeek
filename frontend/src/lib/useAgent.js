@@ -202,6 +202,21 @@ export function useAgent() {
       else mockRef.current?.reject(id, approver, reason || 'Rejected from the dashboard')
       return { ok: true }
     }
+    // Signed in with GitHub: the Vercel function /api/auth adds the admin token server-side
+    // and records the GitHub login as approver.
+    if (auth.github) {
+      const g = await fetch(`/api/auth?a=decide&id=${encodeURIComponent(id)}&kind=${kind}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || 'Rejected from the dashboard' }),
+      }).catch(() => null)
+      if (!g) return { ok: false, error: 'Could not reach the API.' }
+      if (g.status === 401) return { ok: false, error: 'Your GitHub session expired. Sign out and sign in again.' }
+      if (!g.ok) return { ok: false, error: `The API answered ${g.status}.` }
+      const d = await g.json().catch(() => null)
+      if (d?.id) dispatch({ type: 'incident', data: d })
+      return { ok: true }
+    }
     const r = await fetch(API_URL + (kind === 'approve' ? ENDPOINTS.approve(id) : ENDPOINTS.reject(id)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Token': auth.token || '' },
