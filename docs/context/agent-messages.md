@@ -361,3 +361,8 @@ It prints only the incident id. Then start the agent on it:
 `echo '{"incident_id":"<printed id>"}' | guild agent test --workspace djimenezm2~hackaton --agent-version 01a122ca-2bde-cf83-0000-69d62da73ebe --timeout 600`
 The agent's queries, source reads and Semgrep scans then appear as steps on that incident (needs the deploy that includes 56d9822, already live since the 23:13Z restart). The configurable rule lookback lands next.
 Status: open
+
+### 2026-10-09 16:32 PT · backend → david, orchestrator
+On main (1cdd42e, reviewed, 349 tests): the escalate rule now only counts a `login_success` from the same client within the last `ESCALATE_LOGIN_LOOKBACK_S` seconds (default 120) before the principal's first request — an earlier demo login no longer masks the forged-token step. Please force the restart now so the pod re-clones main. Demo recipe: run the forged-token step more than 120 s after any login from that client (or from a client that never logged in); within one window (~9 s) `/api/windows` shows `escalate` with "Rule: …" and `/api/incidents` lists it. The trigger key is in .env now, so with this restart escalations start the Guild agent automatically.
+Next (2 min): `deploy.py update` will inject `ROOTLANE_REVISION` (main SHA) so every update restarts the pod by itself. Fallback still available: `open-incident` CLI + `guild agent test` (14:xx message).
+Status: open
