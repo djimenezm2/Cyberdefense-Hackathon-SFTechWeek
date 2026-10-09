@@ -6,9 +6,10 @@ Updated 2026-10-09 ~14:05 PT. Submission closes 4:30 PM PT.
 
 | Area | Owner | Scope | Reads |
 |---|---|---|---|
-| Backend: `toolbox/` (Python 3.12, FastAPI) | David | Telemetry ingest into ClickHouse, continuous analysis with the AkashML triage model, agent tools, dashboard API at `/api/*`, serving `ui/dist` | Spec "Decisions", `docs/context/infrastructure.md`, `docs/ui/dashboard-contract.md` |
+| Backend: `toolbox/` (Python 3.12, FastAPI) | David | Telemetry ingest into ClickHouse, continuous analysis with the AkashML triage model, agent tools, dashboard API at `/api/*` with CORS for `app.rootlane.xyz`, deployed at `api.rootlane.xyz` | Spec "Decisions", `docs/context/infrastructure.md`, `docs/ui/dashboard-contract.md` |
 | Agent: `agent/` (TypeScript on Guild) | David | Investigating agent on `claude-opus-5`, published to workspace `djimenezm2/hackaton`, calls the toolbox through one Guild integration | `docs/research/guild.md` |
-| Dashboard: `ui/` (Vite + React) | UI team | Overview, Incident and Audit screens against `ui/fixtures/`, then against the live API | `docs/ui/dashboard-contract.md`, `ui/fixtures/` |
+| Juice Shop app: `target/` → `juiceshop.rootlane.xyz` | Nana | Deploy Juice Shop from the fork as its own app; later add the telemetry middleware that posts to `https://api.rootlane.xyz/internal/events` with `INGEST_TOKEN` | `docs/context/infrastructure.md` |
+| Dashboard: `ui/` (Vite + React) → `app.rootlane.xyz` | UI team | Overview, Incident and Audit screens against `ui/fixtures/`, then against the live API | `docs/ui/dashboard-contract.md`, `ui/fixtures/` |
 | Infrastructure | David + orchestrator session | Accounts, DNS, image build (GitHub Actions → GHCR), Akash deployment | `docs/context/infrastructure.md` |
 
 ## Contract between backend and dashboard
@@ -28,4 +29,4 @@ do not invent endpoints only on one side.
 
 - Guild API trigger key: created in the Guild web UI once the agent is published.
 - GHCR package visibility set to public after the first image build.
-- Cloudflare DNS records for `shop.`, `api.`, `app.rootlane.xyz` once the Akash ingress host exists.
+- Cloudflare DNS records for `juiceshop.`, `api.`, `app.rootlane.xyz` once the Akash ingress host exists.

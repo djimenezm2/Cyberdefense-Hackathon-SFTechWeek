@@ -25,7 +25,7 @@ images on approval (stretch), Langfuse (Guild's session log plus `agent_actions`
 
 | Unit | Runs on | Responsibility |
 |---|---|---|
-| `target` | Akash, `shop.rootlane.xyz` | OWASP Juice Shop from source (our fork) plus a telemetry middleware that ships every request and auth event to ClickHouse. |
+| `target` | Akash, `juiceshop.rootlane.xyz` | OWASP Juice Shop from source (our fork) plus a telemetry middleware that ships every request and auth event to ClickHouse. |
 | `toolbox` | Akash, `api.rootlane.xyz` | Public HTTPS API that is the agent's only way to act. Owns the sandbox replica, the incident store and the approval gate. Supervises the `target` and `sandbox` processes. |
 | `detector` | inside `toolbox` | Runs detection SQL every few seconds, triages hits with an AkashML open model, opens an incident and starts a Guild session. |
 | `agent` | Guild | `AUTO_MANAGED_STATE` TypeScript agent on Claude. Investigates, reproduces, patches, verifies, proposes, waits for approval, applies. |
@@ -111,7 +111,7 @@ CNAMEs under `rootlane.xyz`. Secrets as Akash env vars. `ui` on Akash or Vercel,
 
 ## Decisions (2026-10-09, supersede earlier sections where they differ)
 
-- **Stack.** `toolbox` in Python 3.12 + FastAPI, managed with `uv`. `agent` in TypeScript on Guild (the only runtime Guild hosts). Dashboard in Vite + React, built to `ui/dist` and served by the toolbox.
+- **Stack.** `toolbox` in Python 3.12 + FastAPI, managed with `uv`. `agent` in TypeScript on Guild (the only runtime Guild hosts). Dashboard in Vite + React, deployed on its own.
 - **Models.**
   - Investigating agent: Claude through Guild's managed LLM access (account has a 50M Guild-token balance; no own provider key needed). Model chosen in the agent's `llmPreferences`: `claude-opus-5` (the frontier tier listed in Guild's pricing table).
   - Continuous analysis: AkashML open model (`zai-org/GLM-5.3` via the OpenAI-compatible API at `https://api.akashml.com/v1`). Model and base URL come from env (`TRIAGE_BASE_URL`, `TRIAGE_MODEL`, `TRIAGE_API_KEY`) so it can switch to another provider without code changes.
@@ -120,4 +120,5 @@ CNAMEs under `rootlane.xyz`. Secrets as Akash env vars. `ui` on Akash or Vercel,
 - **Telemetry never stores passwords, tokens or request bodies**, only derived fields.
 - **Image build.** GitHub Actions builds the Docker image and pushes it to GHCR (`ghcr.io/djimenezm2/rootlane`); no local Docker needed.
 - **Dashboard API** is fixed by `docs/ui/dashboard-contract.md` and `ui/fixtures/`.
+- **Three separate deployments**, each its own app and Akash deployment: `juiceshop.rootlane.xyz` (Juice Shop from our fork plus the telemetry middleware), `api.rootlane.xyz` (toolbox, which also holds the ephemeral replicas built from the fork source), `app.rootlane.xyz` (dashboard, static). The middleware sends telemetry to `https://api.rootlane.xyz/internal/events` authenticated with `INGEST_TOKEN`. The toolbox allows CORS from `https://app.rootlane.xyz`. Applying an approved fix opens the PR on the fork and redeploys the Juice Shop app from the patched source (new image tag, Akash deployment update); it no longer restarts a process inside the toolbox.
 - **Guild trigger key** can only be created in the web UI after the agent is published to workspace `djimenezm2/hackaton`.
