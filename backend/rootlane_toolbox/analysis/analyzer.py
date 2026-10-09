@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 _WINDOW_COLS = ["window_start", "window_end", "verdict", "model", "rationale"]
 INGEST_DELAY_S = 3
 _VERDICTS = ("ignore", "watch", "escalate")
+RULE_SENTENCE = "Rule: authenticated responses for a principal with no prior login from that client."
 
 
 class Analyzer:
@@ -46,7 +47,15 @@ class Analyzer:
         start, end = _z(start_dt), _z(end_dt)
         features = compute_features(self._db, start, end)
         if features["principals"] or features["ips"]:
-            decision = self._decide(features)
+            decision, decided = self._decide(features)
+            if features["unauthenticated_principals"]:
+                decision = {
+                    **decision,
+                    "verdict": "escalate",
+                    "rationale": f"{RULE_SENTENCE} {decision['rationale']}".strip()
+                    if decided
+                    else RULE_SENTENCE,
+                }
         else:
             decision = {
                 "verdict": "ignore",
@@ -75,7 +84,7 @@ class Analyzer:
             else:
                 log.info("escalation skipped: an incident is already open")
 
-    def _decide(self, features: dict) -> dict:
+    def _decide(self, features: dict) -> tuple[dict, bool]:
         try:
             decision = self._decider.decide(features)
             if decision["verdict"] not in _VERDICTS:
@@ -84,14 +93,14 @@ class Analyzer:
                 "verdict": decision["verdict"],
                 "rationale": str(decision["rationale"]),
                 "model": str(decision["model"]),
-            }
+            }, True
         except Exception as error:
             log.exception("triage failed")
             return {
                 "verdict": "watch",
                 "rationale": str(error) if isinstance(error, TriageError) else "triage unavailable",
                 "model": self._settings.triage_model,
-            }
+            }, False
 
     def tick(self, now: datetime) -> None:
         """Run one cycle, logging instead of raising so the loop survives failures."""

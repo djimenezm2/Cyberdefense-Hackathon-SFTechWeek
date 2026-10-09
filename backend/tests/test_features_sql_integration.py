@@ -56,3 +56,32 @@ def test_new_principal_flags_only_principals_unseen_before_the_window():
         assert flags["p2-old"] == 0 and flags["p2-fresh"] == 1
     finally:
         client.command(f"ALTER TABLE http_requests DELETE WHERE trace_id = '{trace}'")
+
+
+@pytest.mark.skipif(not os.environ.get("CLICKHOUSE_HOST"), reason="needs live ClickHouse")
+def test_unauthenticated_principals_flags_only_clients_without_a_prior_login():
+    from datetime import datetime, timezone
+
+    client = clickhouse_client(Settings.from_env(os.environ))
+    trace = "p2-unauth-test"
+
+    def row(second, ip, principal, outcome, route="/x"):
+        ts = datetime(2020, 1, 1, 0, 0, second, tzinfo=timezone.utc)
+        return [ts, trace, "GET", route, 200, 1, ip, principal, outcome, []]
+
+    client.insert(
+        "http_requests",
+        [
+            row(31, "198.51.100.31", "", "login_success", "/rest/user/login"),
+            row(33, "198.51.100.31", "p2-p1", "accepted"),
+            row(34, "198.51.100.32", "p2-p2", "accepted"),
+        ],
+        column_names=_COLS,
+    )
+    try:
+        f = compute_features(client, "2020-01-01T00:00:30Z", "2020-01-01T00:01:00Z")
+        assert f["unauthenticated_principals"] == [
+            {"principal_id": "p2-p2", "ip": "198.51.100.32"}
+        ]
+    finally:
+        client.command(f"ALTER TABLE http_requests DELETE WHERE trace_id = '{trace}'")

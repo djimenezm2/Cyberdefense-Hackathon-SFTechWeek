@@ -26,6 +26,25 @@ WHERE ts > {start:String} AND ts <= {end:String}
 GROUP BY ip
 ORDER BY requests DESC LIMIT 20
 """
+_UNAUTHENTICATED = """
+SELECT r.principal_id, r.ip
+FROM (
+  SELECT principal_id, ip, min(ts) AS first_ts
+  FROM http_requests
+  WHERE ts > {start:String} AND ts <= {end:String} AND principal_id != ''
+    AND status >= 200 AND status < 300
+  GROUP BY (principal_id, ip)
+) AS r
+LEFT JOIN (
+  SELECT ip, min(ts) AS login_ts
+  FROM http_requests
+  WHERE auth_outcome = 'login_success'
+    AND ts >= {lookback:String} AND ts <= {end:String}
+  GROUP BY (ip)
+) AS l ON r.ip = l.ip
+WHERE l.ip = '' OR l.login_ts > r.first_ts
+ORDER BY r.first_ts LIMIT 20
+"""
 
 
 def _ch_text(value) -> str:
@@ -61,6 +80,7 @@ def compute_features(db, window_start: str, window_end: str) -> dict:
         }
         for r in pr.result_rows
     ]
+    unauthenticated = db.query(_UNAUTHENTICATED, parameters={**params, "lookback": lookback})
     ip_rows = [
         {
             "ip": r[0],
@@ -78,4 +98,7 @@ def compute_features(db, window_start: str, window_end: str) -> dict:
         "window_end": window_end,
         "principals": principals,
         "ips": ip_rows,
+        "unauthenticated_principals": [
+            {"principal_id": r[0], "ip": r[1]} for r in unauthenticated.result_rows
+        ],
     }
