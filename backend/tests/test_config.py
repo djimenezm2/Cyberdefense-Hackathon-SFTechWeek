@@ -27,3 +27,8 @@ def test_cors_origins_default_and_list():
     assert Settings().cors_origin_list == ["https://app.rootlane.xyz"]
     s = Settings.from_env({"CORS_ORIGINS": "https://a.example, https://b.example"})
     assert s.cors_origin_list == ["https://a.example", "https://b.example"]
+
+
+def test_escalate_login_lookback_defaults_and_reads_env():
+    assert Settings().escalate_login_lookback_s == 120
+    assert Settings.from_env({"ESCALATE_LOGIN_LOOKBACK_S": "300"}).escalate_login_lookback_s == 300

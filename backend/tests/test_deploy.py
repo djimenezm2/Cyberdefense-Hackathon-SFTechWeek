@@ -78,6 +78,12 @@ def test_deploy_env_passes_the_optional_triage_timeout():
     assert deploy.deploy_env({**REQUIRED, "TRIAGE_TIMEOUT_S": "90"})["TRIAGE_TIMEOUT_S"] == "90"
 
 
+def test_deploy_env_passes_the_optional_escalate_login_lookback():
+    assert "ESCALATE_LOGIN_LOOKBACK_S" not in deploy.deploy_env(REQUIRED)
+    env = deploy.deploy_env({**REQUIRED, "ESCALATE_LOGIN_LOOKBACK_S": "300"})
+    assert env["ESCALATE_LOGIN_LOOKBACK_S"] == "300"
+
+
 def test_deploy_env_keeps_explicit_triage_key():
     env = deploy.deploy_env({**REQUIRED, "TRIAGE_API_KEY": "t", "CORS_ORIGINS": "o"})
     assert env["TRIAGE_API_KEY"] == "t"

@@ -20,6 +20,7 @@ class Settings(BaseModel):
     triage_api_key: str = ""
     triage_timeout_s: int = 60
     analyze_interval_s: int = 10
+    escalate_login_lookback_s: int = 120
     cors_origins: str = "https://app.rootlane.xyz"
     guild_workspace: str = ""
     guild_trigger_key_id: str = ""

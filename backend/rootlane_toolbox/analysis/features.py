@@ -36,13 +36,15 @@ FROM (
   GROUP BY (principal_id, ip)
 ) AS r
 LEFT JOIN (
-  SELECT ip, min(ts) AS login_ts
+  SELECT ip, groupArray(ts) AS login_tss
   FROM http_requests
   WHERE auth_outcome = 'login_success'
     AND ts >= {lookback:String} AND ts <= {end:String}
   GROUP BY (ip)
 ) AS l ON r.ip = l.ip
-WHERE l.ip = '' OR l.login_ts > r.first_ts
+WHERE NOT arrayExists(
+  login_ts -> login_ts <= r.first_ts AND login_ts >= subtractSeconds(r.first_ts, {login_s:UInt32}),
+  l.login_tss)
 ORDER BY r.first_ts LIMIT 20
 """
 
@@ -53,7 +55,9 @@ def _ch_text(value) -> str:
     return moment.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 
-def compute_features(db, window_start: str, window_end: str) -> dict:
+def compute_features(
+    db, window_start: str, window_end: str, login_lookback_s: int = 120
+) -> dict:
     """
     Generic per-principal and per-IP behavioural features over a window.
 
@@ -61,6 +65,8 @@ def compute_features(db, window_start: str, window_end: str) -> dict:
         db: ClickHouse client.
         window_start (str): Exclusive ISO-8601 lower bound.
         window_end (str): Inclusive ISO-8601 upper bound.
+        login_lookback_s (int): How long before a principal's first request in the window
+            a `login_success` from its IP still counts as that client having logged in.
 
     Returns:
         dict: Window bounds plus two lists of scenario-agnostic feature rows.
@@ -80,7 +86,10 @@ def compute_features(db, window_start: str, window_end: str) -> dict:
         }
         for r in pr.result_rows
     ]
-    unauthenticated = db.query(_UNAUTHENTICATED, parameters={**params, "lookback": lookback})
+    unauthenticated = db.query(
+        _UNAUTHENTICATED,
+        parameters={**params, "lookback": lookback, "login_s": login_lookback_s},
+    )
     ip_rows = [
         {
             "ip": r[0],
