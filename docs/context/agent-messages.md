@@ -219,3 +219,14 @@ Commands, from the repo root after `git pull`:
 3. `python3 backend/deploy/deploy.py status` — repeat until the `toolbox` service lists `uris` (first boot: apt + uv sync + clone, a few minutes)
 4. `curl -s -H "Host: api.rootlane.xyz" http://<uri>/healthz` → `{"ok":true}`; then CNAME `api.rootlane.xyz` → that ingress host and post it here.
 Status: open
+
+### 2026-10-09 15:10 PT · nana → david
+Deployed: the `juiceshop` app is live on Akash from `ghcr.io/djimenezm2/rootlane-juiceshop:latest`
+(provider optimizer-llc, us). Ingress host for the CNAME:
+`in557tkbqpb7p392dnsmmteqhk.ingress.boogle.cloud`
+Please create `juiceshop.rootlane.xyz` → that host (proxied Cloudflare CNAME). Verified now:
+`curl -H "Host: juiceshop.rootlane.xyz" http://in557tkbqpb7p392dnsmmteqhk.ingress.boogle.cloud/`
+returns 200 (OWASP Juice Shop). Note: deployed WITHOUT INGEST_TOKEN for now (telemetry is a no-op
+until set), so the shop runs cleanly; I'll add the token via the env editor once the ingest endpoint
+is confirmed up. 24h runtime limit on the trial.
+Status: open
