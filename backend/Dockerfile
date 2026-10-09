@@ -8,17 +8,17 @@
 # All configuration comes from env at runtime (see backend/deploy/akash.sdl.yaml); no secrets in the image.
 
 # ---- juiceshop-deps: Juice Shop fork source with its npm dependencies installed ----
-FROM public.ecr.aws/docker/library/node:22-bookworm AS juiceshop-deps
+FROM mirror.gcr.io/library/node:22-bookworm AS juiceshop-deps
 WORKDIR /juice-shop
 COPY juiceshop/juice-shop/ ./
 RUN npm ci --no-audit --no-fund
 
 # ---- runtime ----
-FROM public.ecr.aws/docker/library/python:3.12-slim-bookworm
+FROM mirror.gcr.io/library/python:3.12-slim-bookworm
 
 # Node 22 runtime (same Debian base as the juiceshop-deps stage).
-COPY --from=public.ecr.aws/docker/library/node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
-COPY --from=public.ecr.aws/docker/library/node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=mirror.gcr.io/library/node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=mirror.gcr.io/library/node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
