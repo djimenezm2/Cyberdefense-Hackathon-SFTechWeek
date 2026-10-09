@@ -28,6 +28,9 @@ class Settings(BaseModel):
     public_domain: str = "rootlane.xyz"
     production_source_root: str = "/app/juice-shop"
     sandbox_port: int = 3001
+    sandbox_build_timeout_s: int = 300
+    sandbox_start_timeout_s: int = 120
+    sandbox_request_timeout_s: float = 15.0
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,9 +1,14 @@
 import os
 import re
+import shutil
+import signal
+import socket
+import subprocess
 import tempfile
 import threading
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+import time
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -176,6 +181,171 @@ def touched_files(diff: str) -> list[str]:
 
 
 Builder = Callable[[str], AbstractContextManager[Replica]]
+OUTPUT_TAIL = 2000
+_COPY_IGNORE = shutil.ignore_patterns(".git", "node_modules")
+
+
+def run_process(
+    args: list[str], *, cwd: str, input: str | None, timeout: float, env: dict | None = None
+) -> tuple[int, str]:
+    """
+    Run a command in its own process group and return its exit code and combined output.
+
+    Raises:
+        SandboxError: If the command cannot start or exceeds `timeout`; its group is killed.
+    """
+    try:
+        proc = subprocess.Popen(
+            args, cwd=cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, start_new_session=True,
+        )
+    except OSError as exc:
+        raise SandboxError(f"{args[0]} could not run: {exc}") from exc
+    try:
+        output, _ = proc.communicate(input, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise SandboxError(f"{' '.join(args)} timed out after {timeout}s") from None
+    return proc.returncode, output
+
+
+def spawn_process(args: list[str], *, cwd: str, env: dict) -> subprocess.Popen:
+    """Start a long-running process in its own group, discarding its output."""
+    return subprocess.Popen(
+        args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True,
+    )
+
+
+def stop_process(proc: subprocess.Popen) -> None:
+    """Terminate a process group, killing it if it does not exit within five seconds."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+    except ProcessLookupError:
+        pass
+
+
+def port_is_free(port: int) -> bool:
+    """True when nothing accepts connections on 127.0.0.1:port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex(("127.0.0.1", port)) != 0
+
+
+def http_ready(base_url: str) -> bool:
+    """True when the replica answers its version endpoint."""
+    try:
+        return httpx.get(f"{base_url}/rest/admin/application-version", timeout=2).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+class ReplicaBuilder:
+    """
+    Builds and runs a replica of the production source on the sandbox port.
+
+    The source is copied without `.git` and `node_modules`; the production `node_modules` is
+    linked in. A non-empty diff is applied with `git apply` and the server is rebuilt. Builds and
+    the replica get only PATH, HOME and PORT, never the toolbox's environment.
+
+    Args:
+        settings (Settings): Source root, port and timeouts.
+        run (Callable): Runs a command to completion; see `run_process`.
+        spawn (Callable): Starts the replica server; see `spawn_process`.
+        stop (Callable): Stops the replica server; see `stop_process`.
+        probe (Callable): True once the replica answers; see `http_ready`.
+        port_free (Callable): True when the sandbox port is unused; see `port_is_free`.
+        sleep (Callable): Pause between readiness probes.
+        workdir (str | None): Parent of the temporary replica directories.
+    """
+
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        run=run_process,
+        spawn=spawn_process,
+        stop=stop_process,
+        probe=http_ready,
+        port_free=port_is_free,
+        sleep=time.sleep,
+        workdir: str | None = None,
+    ):
+        self._settings = settings
+        self._run = run
+        self._spawn = spawn
+        self._stop = stop
+        self._probe = probe
+        self._port_free = port_free
+        self._sleep = sleep
+        self._workdir = workdir
+
+    @property
+    def base_url(self) -> str:
+        return f"http://127.0.0.1:{self._settings.sandbox_port}"
+
+    def _env(self, home: str) -> dict:
+        return {"PATH": os.environ.get("PATH", ""), "HOME": home, "PORT": str(self._settings.sandbox_port)}
+
+    def _prepare(self, src: str, diff: str, env: dict) -> None:
+        root = self._settings.production_source_root
+        shutil.copytree(root, src, symlinks=True, ignore=_COPY_IGNORE)
+        if os.path.isdir(os.path.join(root, "node_modules")):
+            os.symlink(os.path.join(root, "node_modules"), os.path.join(src, "node_modules"))
+        if not diff:
+            return
+        timeout = self._settings.sandbox_build_timeout_s
+        steps = (
+            (["git", "apply", "--whitespace=nowarn", "-"], diff, "diff does not apply"),
+            (["node_modules/.bin/tsc"], None, "patched source does not build"),
+        )
+        for args, stdin, failure in steps:
+            code, output = self._run(args, cwd=src, input=stdin, timeout=timeout, env=env)
+            if code != 0:
+                raise PatchError(f"{failure}: {output[-OUTPUT_TAIL:]}")
+
+    def _wait_ready(self, proc) -> None:
+        deadline = time.monotonic() + self._settings.sandbox_start_timeout_s
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                raise SandboxError(f"replica exited during startup with code {proc.poll()}")
+            if self._probe(self.base_url):
+                return
+            self._sleep(0.5)
+        raise SandboxError(
+            f"replica not ready after {self._settings.sandbox_start_timeout_s}s"
+        )
+
+    @contextmanager
+    def build(self, diff: str) -> Iterator[Replica]:
+        """
+        Yield a running replica of production plus `diff`, then stop it and delete its files.
+
+        Raises:
+            PatchError: If the diff does not apply or the server does not build.
+            SandboxError: If the port is taken, a step times out or the replica does not start.
+        """
+        port = self._settings.sandbox_port
+        if not self._port_free(port):
+            raise SandboxError(f"sandbox port {port} is already in use")
+        tmp = tempfile.mkdtemp(prefix="rootlane-replica-", dir=self._workdir)
+        proc = None
+        try:
+            src = os.path.join(tmp, "src")
+            env = self._env(tmp)
+            self._prepare(src, diff, env)
+            proc = self._spawn(["node", "build/app.js"], cwd=src, env=env)
+            self._wait_ready(proc)
+            yield Replica(base_url=self.base_url, source_dir=src)
+        finally:
+            if proc is not None:
+                self._stop(proc)
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class SandboxManager:
