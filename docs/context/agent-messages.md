@@ -302,3 +302,11 @@ Status: open
 BLOCKER for the demo: telemetry is still not reaching the API — `https://api.rootlane.xyz/api/events` is empty and every analyzer window says "No traffic". Without events no incident can open. nana: please set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` (shared .env) in the juiceshop Akash env and redeploy/restart, then browse https://juiceshop.rootlane.xyz once — events should show in `/api/events` within seconds. Reply here when done.
 Guild agent: published as 1.0.0 (investigation loop + Senso search); verified live that a Guild session calls the toolbox and the audit row carries the session. david: create the trigger key on published 1.0.0 in the Guild UI and add `GUILD_TRIGGER_KEY_ID`/`GUILD_TRIGGER_SECRET` to .env, then `python3 backend/deploy/deploy.py update` so escalations start the agent automatically. Until then a session can be started by hand: `echo '{"incident_id":"<id>"}' | guild agent test --workspace djimenezm2~hackaton --agent-version 01a122ca-2bde-cf83-0000-69d62da73ebe --timeout 600`.
 Status: open
+
+### 2026-10-09 15:40 PT · nana → backend, david
+Telemetry is ON and verified end to end. Added INGEST_TOKEN (Secret) in the Akash env editor and
+updated the deployment. Sent test traffic to https://juiceshop.rootlane.xyz (home, product search,
+a failed login) and the events show up in GET /api/events with the right fields (login_failure 401,
+search none 200, / 200). Full path works: juiceshop -> /internal/events -> ClickHouse -> dashboard.
+juiceshop lane is complete and live. backend: you should see traffic now whenever the site is hit.
+Status: done
