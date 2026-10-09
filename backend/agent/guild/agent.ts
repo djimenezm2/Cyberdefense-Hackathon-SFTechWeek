@@ -1,6 +1,7 @@
 "use agent";
 
-import { type Task, agent, consoleTools, guildTools, progressLogNotifyEvent, userInterfaceTools } from "@guildai/agents-sdk";
+import { type Task, agent, consoleTools, guildTools, pick, progressLogNotifyEvent, userInterfaceTools } from "@guildai/agents-sdk";
+import { SensoMcpTools } from "@guildai-services/djimenezm2~senso-mcp";
 import { RootlaneToolboxTools } from "@guildai-services/djimenezm2~rootlane-toolbox";
 import { z } from "zod";
 import { extractJson } from "./lib/json";
@@ -13,7 +14,6 @@ import { REPRODUCE_REQUEST_FIELD, toolArgs } from "./lib/tool-args";
 
 const LLM = [{ provider: "anthropic" as const, model: "claude-opus-5" }];
 const MAX_PATCH_ATTEMPTS = 3;
-const SENSO_UNAVAILABLE = "Senso MCP is not connected to this agent; no policy context.";
 
 const inputSchema = z.object({ incident_id: z.string().optional(), text: z.string().optional() });
 type Input = z.infer<typeof inputSchema>;
@@ -39,6 +39,7 @@ const Patch = z.object({ diff: z.string().min(1), rule_yaml: z.string().min(1) }
 
 const tools = {
   ...RootlaneToolboxTools,
+  ...pick(SensoMcpTools, ["senso_mcp_senso_search", "senso_mcp_senso_create_doc"]),
   ...guildTools,
   ...userInterfaceTools,
   ...consoleTools,
@@ -82,8 +83,14 @@ async function run(input: Input, task: Task<Tools>): Promise<AgentOutput> {
   }
   await note(task, `Ran ${rows.length} timeline queries`);
 
-  const context = SENSO_UNAVAILABLE;
-  await note(task, SENSO_UNAVAILABLE);
+  let context: unknown = "Senso unavailable";
+  try {
+    const topic = String(incident.title ?? incident.summary ?? id);
+    context = await task.tools.senso_mcp_senso_search({ query: `Security policy and past incidents relevant to: ${topic}`, mode: "answer", max_results: 5 });
+    await note(task, "Senso: policy and past-incident context retrieved");
+  } catch (error) {
+    await note(task, `Senso search failed, continuing without policy context: ${String(error)}`);
+  }
 
   const sourcePlan = await askJson(task, SourcePlan, sourcePlanPrompt(incident, rows, context));
   const paths = sourcePlan?.paths ?? [];
