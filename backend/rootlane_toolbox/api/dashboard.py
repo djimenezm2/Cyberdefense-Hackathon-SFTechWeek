@@ -14,6 +14,7 @@ from ..core.models import (
     IncidentDetail,
     IncidentSummary,
     Overview,
+    PRIVATE_INCIDENT_FIELDS,
     RejectBody,
     RpsPoint,
     Window,
@@ -122,7 +123,11 @@ def incidents(store: IncidentStore = Depends(get_store)):
     return store.list_summaries()
 
 
-@dashboard_router.get("/api/incidents/{incident_id}", response_model=IncidentDetail)
+@dashboard_router.get(
+    "/api/incidents/{incident_id}",
+    response_model=IncidentDetail,
+    response_model_exclude=PRIVATE_INCIDENT_FIELDS,
+)
 def incident_detail(incident_id: str, store: IncidentStore = Depends(get_store)):
     detail = store.get(incident_id)
     if detail is None:
@@ -174,6 +179,7 @@ def _decide(incident_id: str, store: IncidentStore, approver: str, decision: str
 @dashboard_router.post(
     "/api/incidents/{incident_id}/approve",
     response_model=IncidentDetail,
+    response_model_exclude=PRIVATE_INCIDENT_FIELDS,
     dependencies=[Depends(require_admin_token)],
 )
 def approve(incident_id: str, body: ApproveBody, store: IncidentStore = Depends(get_store)):
@@ -183,6 +189,7 @@ def approve(incident_id: str, body: ApproveBody, store: IncidentStore = Depends(
 @dashboard_router.post(
     "/api/incidents/{incident_id}/reject",
     response_model=IncidentDetail,
+    response_model_exclude=PRIVATE_INCIDENT_FIELDS,
     dependencies=[Depends(require_admin_token)],
 )
 def reject(incident_id: str, body: RejectBody, store: IncidentStore = Depends(get_store)):

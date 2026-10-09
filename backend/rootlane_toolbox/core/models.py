@@ -167,6 +167,12 @@ class IncidentDetail(BaseModel):
     proposal: Optional[Proposal] = None
     approval: Optional[Approval] = None
     apply: Optional[ApplyResult] = None
+    reproduction: Optional[dict] = None
+    last_verify: Optional[dict] = None
+
+
+# Stored on the incident for the tools; never returned by the public dashboard API.
+PRIVATE_INCIDENT_FIELDS = {"reproduction", "last_verify"}
 
 
 class Action(BaseModel):

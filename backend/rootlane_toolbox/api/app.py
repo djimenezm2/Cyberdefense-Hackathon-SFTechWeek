@@ -15,6 +15,7 @@ from ..analysis.decider import AkashMLDecider
 from ..core.guards import GuardError
 from ..integrations.guild import GuildTrigger
 from .ingest import ingest_router
+from ..integrations.sandbox import build_sandbox
 from ..storage.store import IncidentStore
 from .stream import stream_router
 from .tools import tools_router
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     deps.state.db = db
     deps.state.ro_db = ro_db
     deps.state.store = IncidentStore(db, broker=deps.state.broker)
+    deps.state.sandbox = build_sandbox(settings)
 
     app = FastAPI(title="Rootlane toolbox", lifespan=_lifespan)
     app.add_middleware(

@@ -12,6 +12,7 @@ class AppState:
     store: IncidentStore
     broker: Broker = default_broker
     sse_ping_s: float = 15.0
+    sandbox = None
 
 
 state = AppState()
@@ -39,3 +40,7 @@ def get_broker() -> Broker:
 
 def get_ping_interval() -> float:
     return state.sse_ping_s
+
+
+def get_sandbox():
+    return state.sandbox
