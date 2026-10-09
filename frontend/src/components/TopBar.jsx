@@ -27,7 +27,9 @@ export default function TopBar({ state, onToggleReview }) {
   const [askPause, setAskPause] = useState(false)
   const now = useNow()
   const s = STATUS_COPY[state.status] ?? STATUS_COPY.watching
-  const secs = Math.max(0, Math.round((now - state.lastScan) / 1000))
+  const lastAnalysis = state.windows?.length ? Math.max(...state.windows.map((w) => w.end || 0)) : null
+  const scanAt = IS_DEMO ? state.lastScan : lastAnalysis
+  const secs = scanAt ? Math.max(0, Math.round((now - scanAt) / 1000)) : null
   const busy = !['watching', 'paused'].includes(state.status)
   const claim = IS_DEMO ? 'Proven on a replica · 1 approval to ship' : liveClaim(state.incidents)
 
@@ -52,7 +54,7 @@ export default function TopBar({ state, onToggleReview }) {
               {s.label}
             </motion.span>
           </AnimatePresence>
-          <span className="num hidden font-mono text-xs text-mute-400 sm:inline">{state.monitoring ? `· last scan ${secs}s ago` : '· not watching'}</span>
+          <span className="num hidden font-mono text-xs text-mute-400 sm:inline">{!state.monitoring ? '· not watching' : secs === null ? '· waiting for the first analysis' : `· last analysis ${secs}s ago`}</span>
         </div>
 
         <div className="hidden items-center gap-2 2xl:flex">
