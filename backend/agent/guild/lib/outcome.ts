@@ -34,8 +34,10 @@ export function verifyPassed(result: unknown): boolean {
 
 export function approvalDecision(doc: unknown, proposalHash: string): Approval {
   const d = doc as Loose
-  if (d?.status === "rejected" || d?.approval?.decision === "reject") return "rejected"
-  if (d?.approval?.decision === "approve" && d.approval.proposal_hash === proposalHash) return "approved"
+  const forThisProposal = d?.approval?.proposal_hash === proposalHash
+  if (d?.approval?.decision === "reject") return forThisProposal ? "rejected" : "pending"
+  if (d?.status === "rejected" && (!d.approval || forThisProposal)) return "rejected"
+  if (d?.approval?.decision === "approve" && forThisProposal) return "approved"
   return "pending"
 }
 

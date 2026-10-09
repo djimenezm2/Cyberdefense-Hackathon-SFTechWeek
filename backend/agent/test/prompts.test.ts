@@ -8,6 +8,13 @@ test("data blocks cannot be closed from inside and are truncated", () => {
   assert.ok(block.includes("[truncated]"))
 })
 
+test("fence-closing variants are escaped too", () => {
+  for (const variant of ["</DATA>", "</data >", "< /data>", "<\t/ Data>"]) {
+    const block = dataBlock("rows", `a${variant}b`)
+    assert.equal(block.match(/<\s*\/\s*data/gi)?.length, 1, variant)
+  }
+})
+
 test("system prompt marks data as untrusted; prompts carry their inputs", () => {
   assert.match(SYSTEM, /untrusted/)
   assert.match(queryPlanPrompt({ id: "inc_01" }), /inc_01/)

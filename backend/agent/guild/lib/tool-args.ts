@@ -1,5 +1,6 @@
 export const TOOL_ARG_SHAPE: "flat" | "body" = "flat"
 export const SESSION_HEADER_ARG: string | null = null
+export const REPRODUCE_REQUEST_FIELD = "reproduction"
 
 export function toolArgs(body: Record<string, unknown>, sessionId: string,
   shape: "flat" | "body" = TOOL_ARG_SHAPE, headerArg: string | null = SESSION_HEADER_ARG): Record<string, unknown> {

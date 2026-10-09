@@ -24,6 +24,13 @@ test("approval must match this proposal and say approve", () => {
   assert.equal(approvalDecision({ approval: { decision: "reject", proposal_hash: "p1" } }, "p1"), "rejected")
 })
 
+test("a rejection of another proposal does not reject this one", () => {
+  const stale = { status: "pending_approval", approval: { decision: "reject", proposal_hash: "old" } }
+  assert.equal(approvalDecision(stale, "new"), "pending")
+  assert.equal(approvalDecision({ ...stale, status: "rejected" }, "new"), "pending")
+  assert.equal(approvalDecision(stale, "old"), "rejected")
+})
+
 test("applied only when production replay hit the blocked status", () => {
   assert.equal(applySucceeded({ production_status: 401, pr_url: "u" }, repro), true)
   assert.equal(applySucceeded({ production_status: 200 }, repro), false)

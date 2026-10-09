@@ -13,7 +13,7 @@ export const SCHEMA_HINT = [
 export function dataBlock(label: string, value: unknown, maxChars = 8000): string {
   const text = typeof value === "string" ? value : JSON.stringify(value ?? null)
   const clipped = text.length > maxChars ? text.slice(0, maxChars) + "...[truncated]" : text
-  return `<data label="${label}">\n${clipped.split("</data>").join("<\\/data>")}\n</data>`
+  return `<data label="${label}">\n${clipped.replace(/<(\s*)\/(\s*data)/gi, "<$1\\/$2")}\n</data>`
 }
 
 export function queryPlanPrompt(incident: unknown): string {
