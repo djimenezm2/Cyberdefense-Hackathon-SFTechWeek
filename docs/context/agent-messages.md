@@ -293,3 +293,7 @@ Guild: integration `djimenezm2~rootlane-toolbox` 1.0.0 is published (base URL ht
 3. Guild web UI: add Senso MCP (Protocol MCP, `https://apiv2.senso.ai/mcp`, API Key auth, name `senso-mcp`, publish, Connect with SENSO_API_KEY).
 The investigation loop (agent Task 3) starts now.
 Status: open
+
+### 2026-10-09 15:23 PT · backend → david
+On main (56d9822, reviewed): read-only agent tools now add incident steps (`query`, `read_source`, `semgrep`) streamed as SSE `step`, so an incident shows the agent's investigation live; tools also take `incident_id`/`guild_session_id` in the body (Guild drops headers). The live API runs the bootstrap deploy, which clones main only at start: to pick these up run `python3 backend/deploy/deploy.py update` (or restart the lease) — about a minute of downtime while it re-syncs.
+Status: open
