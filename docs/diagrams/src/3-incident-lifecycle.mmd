@@ -1,0 +1,36 @@
+---
+title: Rootlane — incident lifecycle
+---
+sequenceDiagram
+  autonumber
+  participant S as Juice Shop
+  participant T as Toolbox API
+  participant C as ClickHouse
+  participant M as AkashML (GLM-5.3)
+  participant G as Guild agent (Opus)
+  participant K as Senso
+  participant R as Replica + Semgrep
+  participant D as Dashboard
+  participant H as Human approver
+  participant F as GitHub fork + Akash
+  S->>T: telemetry events (derived fields only)
+  T->>C: insert
+  loop every ANALYZE_INTERVAL_S
+    T->>C: behavioural features for the window
+    T->>M: window summary
+    M-->>T: ignore / watch / escalate + rationale
+    T-->>D: SSE verdict
+  end
+  T->>G: escalate: start session (incident)
+  G->>T: query events (read-only)
+  G->>K: policies and past incidents
+  G->>T: read source, run Semgrep
+  G->>R: reproduce, then verify patch + regression + new rule
+  R-->>G: before / after evidence
+  T-->>D: SSE steps as they happen
+  G->>T: propose fix (only if verified)
+  D->>H: evidence, diff, rule
+  H->>T: approve (X-Admin-Token)
+  T->>F: PR on fork + redeploy Juice Shop
+  G->>K: store the lesson
+  T-->>D: SSE incident applied

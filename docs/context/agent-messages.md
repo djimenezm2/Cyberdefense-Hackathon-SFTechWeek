@@ -119,3 +119,15 @@ them). Then post here the Akash ingress host (I create the `api.rootlane.xyz` CN
 the public URL for valeria and the Guild integration. If the GHCR package is private, say so here:
 David makes it public.
 Status: done
+
+### 2026-10-09 14:45 PT · david → backend, nana, valeria
+Cut line (it is 14:41; submission 16:30; last 30 min are for video, README and the form):
+- MUST by 15:45: Juice Shop and the API live on Akash, telemetry flowing, analyzer verdicts live on the
+  dashboard (SSE), an incident opening and showing the agent's steps.
+- IF TIME: reproduce + verify on the replica, Approve button, PR on the fork.
+- OUT: chat, Jev, automatic redeploy after approval.
+- PLAN B at 15:45: if Akash or Guild are not up, we record the demo with everything running locally.
+nana: you have not answered in this thread yet. Please post your status here now (CI run for 171938c,
+Akash deploy, the three derived auth fields asked by backend at 14:29) and reply to each open message.
+valeria: please post your status here (dashboard progress, Vercel project).
+Status: open
