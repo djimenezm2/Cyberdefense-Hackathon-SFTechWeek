@@ -1,14 +1,19 @@
 import os
+import threading
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import deps
+from .analyzer import Analyzer
 from .config import Settings
 from .dashboard import dashboard_router
 from .db import ReadOnlyUnavailable, clickhouse_client, lazy_read_only_client
+from .decider import AkashMLDecider
 from .guards import GuardError
+from .guild import GuildTrigger
 from .ingest import ingest_router
 from .store import IncidentStore
 from .stream import stream_router
@@ -17,6 +22,27 @@ from .tools import tools_router
 
 def _build_clients(settings: Settings):
     return clickhouse_client(settings), lazy_read_only_client(settings)
+
+
+def _build_analyzer_client(settings: Settings):
+    return clickhouse_client(settings)
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    settings = deps.state.settings
+    if settings.triage_api_key:
+        analyzer_db = _build_analyzer_client(settings)
+        analyzer = Analyzer(
+            settings,
+            analyzer_db,
+            IncidentStore(analyzer_db, broker=deps.state.broker),
+            AkashMLDecider(settings),
+            GuildTrigger(settings),
+            deps.state.broker,
+        )
+        threading.Thread(target=analyzer.run_forever, name="analyzer", daemon=True).start()
+    yield
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -36,7 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     deps.state.ro_db = ro_db
     deps.state.store = IncidentStore(db, broker=deps.state.broker)
 
-    app = FastAPI(title="Rootlane toolbox")
+    app = FastAPI(title="Rootlane toolbox", lifespan=_lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
