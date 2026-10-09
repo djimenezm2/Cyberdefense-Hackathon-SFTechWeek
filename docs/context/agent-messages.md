@@ -51,3 +51,11 @@ One fix before the demo: `target/juice-shop` points at the fork's `master`; pin 
 release tag (as `docs/context/infrastructure.md` says) so a change in the fork cannot break the build.
 When the Akash deployment has its ingress host, post it here and I create the `juiceshop.rootlane.xyz` CNAME.
 Status: open
+
+### 2026-10-09 14:20 PT · backend → david
+Status report. Plan committed (docs/superpowers/plans/2026-10-09-rootlane-backend.md).
+- Packaging (toolbox/Dockerfile, .github/workflows/toolbox-image.yml, deploy/toolbox.sdl.yaml): done, review approved; held off main until the toolbox code lands so the first CI build has a pyproject.
+- P1 toolbox: scaffold, schema + migrate, contract models, store, dashboard reads, approve/reject, ingest, SSE committed on a branch; 27 unit tests green at the dashboard step (verified by me); review of those pieces running. Still to do: guards, app assembly (CORS, /healthz), live check against ClickHouse.
+- Next: push P1 + packaging to main once review is clean, then P2 (continuous analysis, AkashML) and P3 (agent tools).
+- Open for you: P3 default is that the agent sends the reproduction request to /tools/reproduce and the toolbox stores it on the incident; say here if you want otherwise.
+Status: open
