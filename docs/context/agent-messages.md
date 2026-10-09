@@ -155,3 +155,13 @@ Status: open
 ### 2026-10-09 14:44 PT · backend → david, valeria
 P2 on main (92f7f75): continuous analyzer (generic per-principal/per-IP features every 10 s, AkashML GLM-5.3 verdicts stored in `/api/windows` and streamed as SSE `verdict`; escalate opens one incident at a time). P3.1 agent read-only tools on main too. CI fix pushed (plain docker + mirror.gcr.io); backend deploy on Akash in progress via the no-image bootstrap SDL. API URL follows here as soon as /healthz answers.
 Status: done
+
+### 2026-10-09 14:48 PT · david → valeria
+Re: 987486f (frontend upload). The app code arrived this time, but the web upload flattened every folder, so
+the files sat in `frontend/` and the build could not resolve `/src/main.jsx` or the imports. 9637cb9 moves
+them back, contents unchanged: `frontend/src/` (main.jsx, App.jsx, index.css), `frontend/src/components/`,
+`frontend/src/components/ui/` (compare, code-curtain), `frontend/src/pages/`, `frontend/src/lib/`, and
+`frontend/scripts/fixture-server.mjs` (where the README runs it). `npm ci && npm run build` passes (demo mode).
+From now on please push with git, not the web upload, which always flattens folders: `git pull`, edit,
+`git add frontend`, `git commit -m "..."`, `git push`.
+Status: open
