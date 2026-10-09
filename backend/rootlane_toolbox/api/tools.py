@@ -48,12 +48,19 @@ def require_api_key(
         raise HTTPException(status_code=401, detail="invalid API key")
 
 
+ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+
+
 def _session(x_guild_session: str | None = Header(default=None)) -> str:
-    return x_guild_session or "unknown"
+    return x_guild_session or ""
 
 
 def _incident(x_incident_id: str | None = Header(default=None)) -> str:
     return x_incident_id or ""
+
+
+def _pick(body_value: str | None, header_value: str) -> str:
+    return body_value or header_value
 
 
 def _json_cell(value):
@@ -108,7 +115,13 @@ def record(
     """
     started = time.monotonic()
     outcome = "ok"
+    valid_incident, valid_session = "", "unknown"
     try:
+        if incident_id and not ID_PATTERN.match(incident_id):
+            raise GuardError("illegal incident_id")
+        if session_id and not ID_PATTERN.match(session_id):
+            raise GuardError("illegal guild_session_id")
+        valid_incident, valid_session = incident_id, session_id or "unknown"
         yield
     except GuardError:
         outcome = "refused"
@@ -119,24 +132,29 @@ def record(
     finally:
         action = Action(
             ts=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
-            incident_id=incident_id,
+            incident_id=valid_incident,
             operation=operation,
             outcome=outcome,
             duration_ms=int((time.monotonic() - started) * 1000),
-            on_behalf_of=on_behalf_of or f"rootlane-agent (Guild session {session_id})",
+            on_behalf_of=on_behalf_of or f"rootlane-agent (Guild session {valid_session})",
         )
-        store.record_action(action, guild_session_id=session_id, args_hash=args_hash(args))
+        store.record_action(action, guild_session_id=valid_session, args_hash=args_hash(args))
 
 
-class QueryBody(BaseModel):
+class ToolBody(BaseModel):
+    incident_id: str | None = None
+    guild_session_id: str | None = None
+
+
+class QueryBody(ToolBody):
     sql: str
 
 
-class SourceBody(BaseModel):
+class SourceBody(ToolBody):
     path: str
 
 
-class ScanBody(BaseModel):
+class ScanBody(ToolBody):
     config: str | None = None
     paths: list[str] | None = None
 
@@ -149,16 +167,20 @@ def query_events(
     body: QueryBody,
     store: IncidentStore = Depends(get_store),
     ro_db=Depends(get_ro_db),
-    session_id: str = Depends(_session),
-    incident_id: str = Depends(_incident),
+    header_session: str = Depends(_session),
+    header_incident: str = Depends(_incident),
 ) -> dict:
     """
     Run one read-only SQL statement through the read-only ClickHouse principal.
 
     Note:
-        `X-Guild-Session` and `X-Incident-Id` are caller-supplied and not verified.
+        `incident_id` and `guild_session_id` (body, or the `X-Incident-Id` / `X-Guild-Session`
+        headers) are caller-supplied and not verified.
     """
-    with record(store, "query_events", incident_id, body.model_dump(), session_id):
+    with record(
+        store, "query_events", _pick(body.incident_id, header_incident), body.model_dump(),
+        _pick(body.guild_session_id, header_session),
+    ):
         sql = assert_read_only_sql(body.sql)
         result = ro_db.query(sql)
         rows = [[_json_cell(c) for c in r] for r in result.result_rows[:MAX_ROWS]]
@@ -174,11 +196,14 @@ def read_source(
     body: SourceBody,
     store: IncidentStore = Depends(get_store),
     settings: Settings = Depends(get_settings),
-    session_id: str = Depends(_session),
-    incident_id: str = Depends(_incident),
+    header_session: str = Depends(_session),
+    header_incident: str = Depends(_incident),
 ) -> dict:
     """Return a file from the production source tree."""
-    with record(store, "read_source", incident_id, body.model_dump(), session_id):
+    with record(
+        store, "read_source", _pick(body.incident_id, header_incident), body.model_dump(),
+        _pick(body.guild_session_id, header_session),
+    ):
         target = resolve_source_path(settings.production_source_root, body.path)
         if "node_modules" in target.parts:
             raise GuardError("node_modules is not readable")
@@ -198,11 +223,14 @@ def semgrep_scan(
     body: ScanBody,
     store: IncidentStore = Depends(get_store),
     settings: Settings = Depends(get_settings),
-    session_id: str = Depends(_session),
-    incident_id: str = Depends(_incident),
+    header_session: str = Depends(_session),
+    header_incident: str = Depends(_incident),
 ) -> dict:
     """Run Semgrep over the production source tree and return the findings."""
-    with record(store, "semgrep_scan", incident_id, body.model_dump(), session_id):
+    with record(
+        store, "semgrep_scan", _pick(body.incident_id, header_incident), body.model_dump(),
+        _pick(body.guild_session_id, header_session),
+    ):
         root = settings.production_source_root
         config = _semgrep_config(body.config)
         for path in body.paths or []:
@@ -218,12 +246,12 @@ def semgrep_scan(
 STEP_SUMMARY_CHARS = 300
 
 
-class ReproduceBody(BaseModel):
+class ReproduceBody(ToolBody):
     incident_id: str
     reproduction: dict
 
 
-class VerifyBody(BaseModel):
+class VerifyBody(ToolBody):
     incident_id: str
     diff: str
     rule_yaml: str
@@ -257,10 +285,12 @@ def reproduce(
     body: ReproduceBody,
     store: IncidentStore = Depends(get_store),
     sandbox=Depends(get_sandbox),
-    session_id: str = Depends(_session),
+    header_session: str = Depends(_session),
 ) -> dict:
     """Replay the agent's reproduction on a fresh replica and store it on the incident."""
-    with record(store, "reproduce", body.incident_id, body.model_dump(), session_id):
+    with record(
+        store, "reproduce", body.incident_id, body.model_dump(), _pick(body.guild_session_id, header_session)
+    ):
         detail = _load_incident(store, body.incident_id)
         try:
             reproduction = parse_reproduction(body.reproduction)
@@ -283,10 +313,12 @@ def verify_patch(
     body: VerifyBody,
     store: IncidentStore = Depends(get_store),
     sandbox=Depends(get_sandbox),
-    session_id: str = Depends(_session),
+    header_session: str = Depends(_session),
 ) -> dict:
     """Check a candidate patch on replicas against the stored reproduction and record the result."""
-    with record(store, "verify_patch", body.incident_id, body.model_dump(), session_id):
+    with record(
+        store, "verify_patch", body.incident_id, body.model_dump(), _pick(body.guild_session_id, header_session)
+    ):
         detail = _load_incident(store, body.incident_id)
         if detail.reproduction is None:
             raise GuardError("no stored reproduction for this incident; call reproduce first")

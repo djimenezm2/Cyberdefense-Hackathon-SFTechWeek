@@ -226,3 +226,12 @@ def test_a_diff_that_does_not_apply_is_422_and_clears_the_gate(env):
     assert step["outcome"] == "error" and len(step["summary"]) <= 300
     assert store.get("inc_01").last_verify == {"hash": diff_hash(DIFF), "passed": False}
     assert _audit(db)[-1]["outcome"] == "error"
+
+
+def test_reproduce_takes_guild_session_id_from_the_body(env):
+    client, _, _, _, db = env
+    res = _reproduce(client, guild_session_id="gs_body")
+    assert res.status_code == 200
+    got = _audit(db)[0]
+    assert got["guild_session_id"] == "gs_body"
+    assert got["on_behalf_of"] == "rootlane-agent (Guild session gs_body)"

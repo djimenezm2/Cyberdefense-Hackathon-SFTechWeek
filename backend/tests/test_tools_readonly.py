@@ -296,3 +296,67 @@ def test_non_ascii_api_key_does_not_crash(env):
     client, _, _ = env
     res = client.post("/tools/read_source", json={"path": "a"}, headers={"Authorization": "Bearer \u00e9".encode()})
     assert res.status_code == 401
+
+
+NOKEY = {"X-API-Key": "agentkey"}
+IDS = {"incident_id": "inc_01", "guild_session_id": "gs_body.1"}
+
+
+@pytest.mark.parametrize(
+    "route,body",
+    [
+        ("query_events", {"sql": "SELECT id, n FROM events"}),
+        ("read_source", {"path": "routes/login.ts"}),
+        ("semgrep_scan", {"paths": ["routes"]}),
+    ],
+)
+def test_audit_row_carries_body_ids(env, monkeypatch, route, body):
+    client, db, _ = env
+    monkeypatch.setattr(tools, "run_semgrep", lambda *a, **k: {"findings": 0, "results": []})
+    res = client.post(f"/tools/{route}", json={**body, **IDS}, headers=NOKEY)
+    assert res.status_code == 200
+    got = _audit(db)[0]
+    assert got["incident_id"] == "inc_01"
+    assert got["guild_session_id"] == "gs_body.1"
+    assert got["on_behalf_of"] == "rootlane-agent (Guild session gs_body.1)"
+
+
+def test_body_ids_win_over_headers(env):
+    client, db, _ = env
+    headers = {**KEY, "X-Incident-Id": "inc_header"}
+    client.post("/tools/read_source", json={"path": "routes/login.ts", **IDS}, headers=headers)
+    got = _audit(db)[0]
+    assert (got["incident_id"], got["guild_session_id"]) == ("inc_01", "gs_body.1")
+
+
+def test_header_ids_still_work_as_fallback(env):
+    client, db, _ = env
+    headers = {**KEY, "X-Incident-Id": "inc_header"}
+    client.post("/tools/read_source", json={"path": "routes/login.ts"}, headers=headers)
+    got = _audit(db)[0]
+    assert (got["incident_id"], got["guild_session_id"]) == ("inc_header", "gs_9c1")
+
+
+def test_unknown_session_identity_text(env):
+    client, db, _ = env
+    client.post("/tools/read_source", json={"path": "routes/login.ts"}, headers=NOKEY)
+    assert _audit(db)[0]["on_behalf_of"] == "rootlane-agent (Guild session unknown)"
+
+
+@pytest.mark.parametrize("field", ["incident_id", "guild_session_id"])
+@pytest.mark.parametrize("bad", ["a b", "x" * 65, "a/b", "a;drop", "\u00e9"])
+def test_bad_ids_are_400_and_refused(env, field, bad):
+    client, db, _ = env
+    res = client.post("/tools/read_source", json={"path": "routes/login.ts", field: bad}, headers=NOKEY)
+    assert res.status_code == 400
+    got = _audit(db)[0]
+    assert got["outcome"] == "refused"
+    assert bad not in (got["incident_id"], got["guild_session_id"], got["on_behalf_of"])
+
+
+def test_bad_header_id_is_also_refused(env):
+    client, db, _ = env
+    headers = {**NOKEY, "X-Incident-Id": "a b"}
+    res = client.post("/tools/read_source", json={"path": "routes/login.ts"}, headers=headers)
+    assert res.status_code == 400
+    assert _audit(db)[0]["outcome"] == "refused"
