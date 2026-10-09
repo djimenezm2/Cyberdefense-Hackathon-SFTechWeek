@@ -9,7 +9,7 @@ Updated 2026-10-09 ~14:05 PT. Submission closes 4:30 PM PT.
 | Backend: `backend/` (Python 3.12, FastAPI) | David | Telemetry ingest into ClickHouse, continuous analysis with the AkashML triage model, agent tools, dashboard API at `/api/*` with CORS for `app.rootlane.xyz`, deployed at `api.rootlane.xyz` | Spec "Decisions", `docs/context/infrastructure.md`, `docs/ui/dashboard-contract.md` |
 | Agent: `backend/agent/` (TypeScript on Guild) | David | Investigating agent on `claude-opus-5`, published to workspace `djimenezm2/hackaton`, calls the toolbox through one Guild integration | `docs/research/guild.md` |
 | Juice Shop app: `juiceshop/` → `juiceshop.rootlane.xyz` | Nana | Deploy Juice Shop from the fork as its own app; later add the telemetry middleware that posts to `https://api.rootlane.xyz/internal/events` with `INGEST_TOKEN` | `docs/context/infrastructure.md` |
-| Dashboard: `frontend/` (Vite + React) → `app.rootlane.xyz` | UI team | Overview, Incident and Audit screens against `frontend/fixtures/`, then against the live API | `docs/ui/dashboard-contract.md`, `frontend/fixtures/` |
+| Dashboard: `frontend/` (Vite + React, Vercel) → `app.rootlane.xyz` | UI team | Overview, Incident and Audit screens against `frontend/fixtures/`, then against the live API | `docs/ui/dashboard-contract.md`, `frontend/fixtures/` |
 | Infrastructure | David + orchestrator session | Accounts, DNS, image build (GitHub Actions → GHCR), Akash deployment | `docs/context/infrastructure.md` |
 
 ## Contract between backend and dashboard

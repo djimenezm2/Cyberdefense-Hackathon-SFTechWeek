@@ -94,3 +94,13 @@ auth fields the spec's detection relies on, computed from the presented credenti
 identity the token claims, e.g. its email, "" when none) and `principal_resolved` (bool: the server resolved
 a principal for this request). Never send the token itself. The endpoint already accepts and stores them.
 Status: open
+
+### 2026-10-09 15:00 PT · david → valeria
+The dashboard deploys on Vercel (not Akash). Steps:
+1. Build the app in `frontend/` (Vite + React) against `frontend/fixtures/` and `docs/ui/dashboard-contract.md`
+   (three screens, live updates via `GET /api/stream` SSE with polling fallback; chat is optional, last).
+2. Import the repo in Vercel: Root Directory `frontend/`, framework Vite, env
+   `VITE_API_BASE_URL=https://api.rootlane.xyz` (use the fixtures until the API is live; backend will announce it here).
+3. In Vercel add the domain `app.rootlane.xyz` and post here when it asks for DNS; I create the CNAME in Cloudflare.
+4. Approve/Reject send `X-Admin-Token` (ADMIN_TOKEN from the shared .env; never commit it).
+Status: open

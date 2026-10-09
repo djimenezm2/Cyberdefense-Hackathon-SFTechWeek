@@ -18,7 +18,7 @@ juiceshop/   Juice Shop app: juice-shop/ (fork submodule), telemetry/, patches/,
 docs/        context, spec, plans, research, dashboard contract
 ```
 
-Each app owns its Dockerfile, its `deploy/` (Akash SDL) and its GitHub Actions workflow. Work only in your own folder.
+`backend/` and `juiceshop/` each own their Dockerfile, `deploy/` (Akash SDL) and GitHub Actions workflow; `frontend/` deploys on Vercel. Work only in your own folder.
 
 ## Agent messages (required)
 
