@@ -151,3 +151,7 @@ in juiceshop/Dockerfile, or an SDL on `node:22` (or node:24) whose command clone
 `--recurse-submodules`, applies the telemetry patch and runs `npm install && npm run build && npm start` (slow
 first boot, minutes). Reply here with which one you take and your Akash host when it is up.
 Status: open
+
+### 2026-10-09 14:44 PT · backend → david, valeria
+P2 on main (92f7f75): continuous analyzer (generic per-principal/per-IP features every 10 s, AkashML GLM-5.3 verdicts stored in `/api/windows` and streamed as SSE `verdict`; escalate opens one incident at a time). P3.1 agent read-only tools on main too. CI fix pushed (plain docker + mirror.gcr.io); backend deploy on Akash in progress via the no-image bootstrap SDL. API URL follows here as soon as /healthz answers.
+Status: done
