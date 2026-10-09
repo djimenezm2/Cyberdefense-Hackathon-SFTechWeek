@@ -6,16 +6,18 @@ import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from ..core.config import Settings
-from .deps import get_ro_db, get_settings, get_store
-from ..core.guards import GuardError, assert_read_only_sql, resolve_source_path
-from ..core.models import Action
+from .deps import get_ro_db, get_sandbox, get_settings, get_store
+from ..core.guards import GuardError, assert_read_only_sql, diff_hash, resolve_source_path
+from ..core.models import Action, AgentStep, IncidentDetail, Regression, ReplicaResult, Verification
+from ..integrations.sandbox import PatchError, SandboxBusy, SandboxError, parse_reproduction
 from ..integrations.semgrep_runner import RULES_DIR, run_semgrep
-from ..storage.store import IncidentStore
+from ..storage.store import IncidentStore, now_iso
 
 REGISTRY_PACK = re.compile(r"^p/[a-z0-9-]+$")
 MAX_ROWS = 200
@@ -211,3 +213,107 @@ def semgrep_scan(
             return run_semgrep(config, body.paths, cwd=root)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+STEP_SUMMARY_CHARS = 300
+
+
+class ReproduceBody(BaseModel):
+    incident_id: str
+    reproduction: dict
+
+
+class VerifyBody(BaseModel):
+    incident_id: str
+    diff: str
+    rule_yaml: str
+
+
+def _load_incident(store: IncidentStore, incident_id: str) -> IncidentDetail:
+    detail = store.get(incident_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="incident not found")
+    return detail
+
+
+def _step(kind: str, summary: str, outcome: str) -> AgentStep:
+    return AgentStep(ts=now_iso(), kind=kind, summary=summary[:STEP_SUMMARY_CHARS], outcome=outcome)
+
+
+def _sandbox_http_error(exc: SandboxError) -> HTTPException:
+    if isinstance(exc, PatchError):
+        return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, SandboxBusy):
+        return HTTPException(status_code=409, detail=str(exc))
+    return HTTPException(status_code=502, detail=str(exc))
+
+
+def _outcome_word(status: int, blocked: int) -> str:
+    return "request rejected" if status == blocked else "issue reproduced"
+
+
+@tools_router.post("/reproduce")
+def reproduce(
+    body: ReproduceBody,
+    store: IncidentStore = Depends(get_store),
+    sandbox=Depends(get_sandbox),
+    session_id: str = Depends(_session),
+) -> dict:
+    """Replay the agent's reproduction on a fresh replica and store it on the incident."""
+    with record(store, "reproduce", body.incident_id, body.model_dump(), session_id):
+        detail = _load_incident(store, body.incident_id)
+        try:
+            reproduction = parse_reproduction(body.reproduction)
+        except GuardError as exc:
+            store.put(detail, step=_step("replay", f"Reproduction refused: {exc}", "refused"))
+            raise
+        target = f"{reproduction.method} {urlsplit(reproduction.path).path}"
+        try:
+            result = sandbox.reproduce(reproduction)
+        except SandboxError as exc:
+            store.put(detail, step=_step("replay", f"Replica replay of {target} failed: {exc}", "error"))
+            raise _sandbox_http_error(exc) from exc
+        detail.reproduction = reproduction.model_dump()
+        store.put(detail, step=_step("replay", f"Replica replay of {target}: {result['status']}", "ok"))
+        return result
+
+
+@tools_router.post("/verify_patch")
+def verify_patch(
+    body: VerifyBody,
+    store: IncidentStore = Depends(get_store),
+    sandbox=Depends(get_sandbox),
+    session_id: str = Depends(_session),
+) -> dict:
+    """Check a candidate patch on replicas against the stored reproduction and record the result."""
+    with record(store, "verify_patch", body.incident_id, body.model_dump(), session_id):
+        detail = _load_incident(store, body.incident_id)
+        if detail.reproduction is None:
+            raise GuardError("no stored reproduction for this incident; call reproduce first")
+        reproduction = parse_reproduction(detail.reproduction)
+        try:
+            result = sandbox.verify_patch(body.diff, body.rule_yaml, reproduction)
+        except SandboxError as exc:
+            detail.last_verify = {"hash": diff_hash(body.diff), "passed": False}
+            store.put(detail, step=_step("verify", f"Verification could not run: {exc}", "error"))
+            raise _sandbox_http_error(exc) from exc
+        blocked = reproduction.expected_blocked_status
+        before = _outcome_word(result["exploit_before"], blocked)
+        after = _outcome_word(result["exploit_after"], blocked)
+        regression = result["regression"]
+        detail.verification = Verification(
+            replica_before=ReplicaResult(status=result["exploit_before"], summary=before),
+            replica_after=ReplicaResult(status=result["exploit_after"], summary=after),
+            regression=Regression(passed=regression["passed"], failed=regression["failed"]),
+            semgrep_old=result["semgrep_old"],
+            semgrep_new=result["semgrep_new"],
+        )
+        detail.last_verify = {"hash": result["hash"], "passed": result["passed"]}
+        total = regression["passed"] + regression["failed"]
+        summary = (
+            f"Replica: {before} before patch, {after} after; "
+            f"regression {regression['passed']}/{total}; "
+            f"rule {result['semgrep_old']} old / {result['semgrep_new']} new"
+        )
+        store.put(detail, step=_step("verify", summary, "ok" if result["passed"] else "error"))
+        return result

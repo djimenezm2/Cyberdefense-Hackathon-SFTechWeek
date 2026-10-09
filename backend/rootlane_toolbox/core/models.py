@@ -167,6 +167,8 @@ class IncidentDetail(BaseModel):
     proposal: Optional[Proposal] = None
     approval: Optional[Approval] = None
     apply: Optional[ApplyResult] = None
+    reproduction: Optional[dict] = None
+    last_verify: Optional[dict] = None
 
 
 class Action(BaseModel):
