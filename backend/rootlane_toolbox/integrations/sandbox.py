@@ -210,12 +210,21 @@ def run_process(
     return proc.returncode, output
 
 
-def spawn_process(args: list[str], *, cwd: str, env: dict) -> subprocess.Popen:
-    """Start a long-running process in its own group, discarding its output."""
-    return subprocess.Popen(
-        args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, start_new_session=True,
-    )
+def spawn_process(args: list[str], *, cwd: str, env: dict, log_path: str) -> subprocess.Popen:
+    """Start a long-running process in its own group, writing its output to `log_path`."""
+    with open(log_path, "wb") as log:
+        return subprocess.Popen(
+            args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log,
+            stderr=subprocess.STDOUT, start_new_session=True,
+        )
+
+
+def _tail(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()[-OUTPUT_TAIL:]
+    except OSError:
+        return ""
 
 
 def stop_process(proc: subprocess.Popen) -> None:
@@ -309,16 +318,18 @@ class ReplicaBuilder:
             if code != 0:
                 raise PatchError(f"{failure}: {output[-OUTPUT_TAIL:]}")
 
-    def _wait_ready(self, proc) -> None:
+    def _wait_ready(self, proc, log_path: str) -> None:
         deadline = time.monotonic() + self._settings.sandbox_start_timeout_s
         while time.monotonic() < deadline:
             if proc.poll() is not None:
-                raise SandboxError(f"replica exited during startup with code {proc.poll()}")
+                raise SandboxError(
+                    f"replica exited during startup with code {proc.poll()}: {_tail(log_path)}"
+                )
             if self._probe(self.base_url):
                 return
             self._sleep(0.5)
         raise SandboxError(
-            f"replica not ready after {self._settings.sandbox_start_timeout_s}s"
+            f"replica not ready after {self._settings.sandbox_start_timeout_s}s: {_tail(log_path)}"
         )
 
     @contextmanager
@@ -339,8 +350,9 @@ class ReplicaBuilder:
             src = os.path.join(tmp, "src")
             env = self._env(tmp)
             self._prepare(src, diff, env)
-            proc = self._spawn(["node", "build/app.js"], cwd=src, env=env)
-            self._wait_ready(proc)
+            log_path = os.path.join(tmp, "replica.log")
+            proc = self._spawn(["node", "build/app.js"], cwd=src, env=env, log_path=log_path)
+            self._wait_ready(proc, log_path)
             yield Replica(base_url=self.base_url, source_dir=src)
         finally:
             if proc is not None:

@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -46,8 +47,9 @@ class Fakes:
             raise result
         return result
 
-    def spawn(self, args, *, cwd, env):
+    def spawn(self, args, *, cwd, env, log_path):
         self.spawned.append((args, cwd, env))
+        Path(log_path).write_text("Error: ENOENT frontend/dist/frontend/index.html\n")
         return FakeProc(self.exit_code)
 
     def stop(self, proc):
@@ -143,7 +145,7 @@ def test_build_timeout_cleans_up(tmp_path):
 
 def test_replica_that_exits_during_startup_is_stopped_and_removed(tmp_path):
     f = Fakes(tmp_path, exit_code=1, ready_after=10**6)
-    with pytest.raises(SandboxError, match="exited"):
+    with pytest.raises(SandboxError, match="exited.*ENOENT frontend/dist"):
         with f.builder().build(""):
             pass
     assert len(f.stopped) == 1 and _leftovers(f) == []
@@ -175,9 +177,12 @@ def test_run_process_kills_on_timeout(tmp_path):
 
 
 def test_stop_process_ends_a_spawned_process(tmp_path):
-    proc = spawn_process(["sleep", "30"], cwd=str(tmp_path), env={"PATH": os.environ["PATH"]})
+    log = tmp_path / "replica.log"
+    proc = spawn_process(["sh", "-c", "echo started; sleep 30"], cwd=str(tmp_path),
+                         env={"PATH": os.environ["PATH"]}, log_path=str(log))
+    time.sleep(0.2)
     stop_process(proc)
-    assert proc.poll() is not None
+    assert proc.poll() is not None and log.read_text() == "started\n"
 
 
 def test_busy_port_is_refused_before_anything_starts(tmp_path):
