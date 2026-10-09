@@ -1,0 +1,69 @@
+# Build the Rootlane `juiceshop` image (Juice Shop from our fork + telemetry) and push it
+# to GHCR. The image is what Akash pulls for juiceshop.rootlane.xyz.
+#
+# Runs on changes to the juiceshop app, and can be run by hand (Run workflow). Uses the
+# built-in GITHUB_TOKEN with packages:write — no personal token or secret needed to push.
+# After the first successful run, set the package visibility to public in the GHCR UI so
+# Akash can pull it without credentials.
+name: juiceshop image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "juiceshop/**"
+      - ".github/workflows/juiceshop-image.yml"
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/rootlane-juiceshop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout (with the juice-shop submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: juiceshop/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "Pushed:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Set the GHCR package public so Akash can pull it anonymously." >> "$GITHUB_STEP_SUMMARY"
