@@ -1,0 +1,4 @@
+[
+  {"id": "m_1", "ts": "2026-10-09T21:03:10Z", "role": "user", "author": "Judge", "text": "Why do you think this is the root cause?"},
+  {"id": "m_2", "ts": "2026-10-09T21:03:14Z", "role": "agent", "author": "rootlane-agent", "text": "Three pieces of evidence point to it: the requests, the code location and the auth policy in Senso. The replica confirms it: before the patch the request succeeds, after it is rejected."}
+]

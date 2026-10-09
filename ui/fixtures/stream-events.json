@@ -1,0 +1,6 @@
+[
+  {"event": "verdict", "data": {"window_start": "2026-10-09T21:00:30Z", "window_end": "2026-10-09T21:00:40Z", "verdict": "escalate", "model": "akashml/glm", "rationale": "Authenticated responses for an identity that never logged in, from the same IP."}},
+  {"event": "incident_update", "data": {"id": "inc_01", "status": "investigating", "severity": "high", "title": "Requests served for an identity that never authenticated"}},
+  {"event": "step", "data": {"incident_id": "inc_01", "ts": "2026-10-09T21:00:45Z", "kind": "query", "summary": "Pulled 40 requests from the window for IP 198.51.100.23", "outcome": "ok"}},
+  {"event": "ping", "data": {}}
+]

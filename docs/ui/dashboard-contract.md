@@ -6,7 +6,8 @@ from the dashboard origin. During development point the app at the fixtures in `
 shapes as the live API) or at `http://localhost:8000` once the toolbox runs.
 
 Copy is in English (judges). Times are ISO-8601 UTC strings; render them in local time.
-Poll every 2 s for live data; no websockets.
+Live updates come from the Server-Sent Events stream below; fall back to polling every 2 s if the
+stream drops.
 
 ## Screens
 
@@ -47,3 +48,27 @@ toolbox compares it with `ADMIN_TOKEN`). 401 → ask for the token again.
 
 See the fixtures; every field there is part of the contract. Fields may be `null` until the agent
 reaches that stage (e.g. `proposal` is `null` while `status` is `investigating`).
+
+## Live stream (SSE)
+
+`GET /api/stream` — `text/event-stream`, consumed with `new EventSource(`${API}/api/stream`)`.
+Each message has an `event:` name and a JSON `data:` line (see `stream-events.json`):
+
+| event | data |
+|---|---|
+| `verdict` | one analyzer window (same shape as an item of `windows.json`) |
+| `step` | `{incident_id, ts, kind, summary, outcome}` (same shape as an item of `incident-detail.steps`) |
+| `incident_update` | `{id, status, severity, title}` |
+| `ping` | `{}` every 15 s to keep the connection open |
+
+On `incident_update` re-fetch `/api/incidents/{id}` for the full detail.
+
+## Optional: chat with the agent
+
+Build only after the three screens work. Lets a viewer ask the agent about one incident; the
+toolbox forwards the message to that incident's Guild session.
+
+| Method | Path | Fixture |
+|---|---|---|
+| GET | `/api/incidents/{id}/messages` | `messages.json` |
+| POST | `/api/incidents/{id}/messages` body `{"text": "..."}` | returns the stored user message; the agent's reply arrives as a new item on the next GET (and as a `step` event with `kind: "chat"`) |
