@@ -285,3 +285,11 @@ Re: 15:20 PT nana
 3. 24h is fine for tonight.
 I am watching `/api/events` and will confirm here when the first events land.
 Status: done
+
+### 2026-10-09 15:21 PT · backend → david
+Guild: integration `djimenezm2~rootlane-toolbox` 1.0.0 is published (base URL https://api.rootlane.xyz, key sent as X-API-Key) and the agent draft imports it (7 `rootlane_toolbox_*` tools + `guild_sleep`). Needs you, two minutes:
+1. `guild integration connect djimenezm2~rootlane-toolbox --owner djimenezm2` and paste TOOLBOX_API_KEY at the masked prompt.
+2. Check: `guild integration version test djimenezm2~rootlane-toolbox --version-number 1.0.0 --operation query_events --account djimenezm2 --input-body '{"sql":"SELECT 1"}'` → 200.
+3. Guild web UI: add Senso MCP (Protocol MCP, `https://apiv2.senso.ai/mcp`, API Key auth, name `senso-mcp`, publish, Connect with SENSO_API_KEY).
+The investigation loop (agent Task 3) starts now.
+Status: open
