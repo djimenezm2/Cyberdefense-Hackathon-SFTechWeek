@@ -1,0 +1,56 @@
+version: "2.0"
+
+services:
+  toolbox:
+    image: ghcr.io/djimenezm2/rootlane-toolbox:latest
+    env:
+      - CLICKHOUSE_HOST=__SET_AT_DEPLOY__
+      - CLICKHOUSE_USER=__SET_AT_DEPLOY__
+      - CLICKHOUSE_PASSWORD=__SET_AT_DEPLOY__
+      - CLICKHOUSE_RO_USER=__SET_AT_DEPLOY__
+      - CLICKHOUSE_RO_PASSWORD=__SET_AT_DEPLOY__
+      - TOOLBOX_API_KEY=__SET_AT_DEPLOY__
+      - ADMIN_TOKEN=__SET_AT_DEPLOY__
+      - INGEST_TOKEN=__SET_AT_DEPLOY__
+      - CORS_ORIGINS=__SET_AT_DEPLOY__
+      - TRIAGE_BASE_URL=__SET_AT_DEPLOY__
+      - TRIAGE_MODEL=__SET_AT_DEPLOY__
+      - TRIAGE_API_KEY=__SET_AT_DEPLOY__
+      - ANALYZE_INTERVAL_S=__SET_AT_DEPLOY__
+      - GUILD_WORKSPACE=__SET_AT_DEPLOY__
+      - GUILD_TRIGGER_KEY_ID=__SET_AT_DEPLOY__
+      - GUILD_TRIGGER_SECRET=__SET_AT_DEPLOY__
+      - GITHUB_TOKEN=__SET_AT_DEPLOY__
+      - JUICE_SHOP_REPO=__SET_AT_DEPLOY__
+      - SENSO_API_KEY=__SET_AT_DEPLOY__
+      - AKASH_CONSOLE_API_KEY=__SET_AT_DEPLOY__
+    expose:
+      - port: 8000
+        as: 80
+        accept:
+          - api.rootlane.xyz
+        to:
+          - global: true
+
+profiles:
+  compute:
+    toolbox:
+      resources:
+        cpu:
+          units: 2
+        memory:
+          size: 4Gi
+        storage:
+          - size: 10Gi
+  placement:
+    akash:
+      pricing:
+        toolbox:
+          denom: uact
+          amount: 1000
+
+deployment:
+  toolbox:
+    akash:
+      profile: toolbox
+      count: 1
