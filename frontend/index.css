@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Warden — dark "security ops" look, single theme by design.
+   Layout: left rail nav · KPI strip · signals/surface/history column + live agent feed column */
+:root {
+  color-scheme: dark;
+  --bg: #07090C;
+  --panel: #0B0E13;
+  --line: #1E2530;
+  --fg: #E8ECF1;
+  --muted: #7C8798;
+  --ok: #2BD576; --warn: #F5A524; --bad: #FF4D5E; --agent: #8FA4F5; --lime: #D7F04B;
+}
+html, body, #root { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+@layer components {
+  .panel { @apply rounded-2xl border border-ink-700 bg-ink-900; }
+  .panel-head { @apply flex items-center justify-between gap-3 px-4 pt-3.5 pb-2; }
+  .eyebrow { @apply font-mono text-[10.5px] uppercase tracking-[0.14em] text-mute-400; }
+  .num { font-variant-numeric: tabular-nums; }
+  .btn { @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-agent/60; }
+}
+
+.grid-bg {
+  background-image: radial-gradient(rgba(143,164,245,.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.scroll-thin::-webkit-scrollbar { width: 6px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #2A3340; border-radius: 3px; }
+
+@keyframes drift { from { transform: translateY(0) } to { transform: translateY(-50%) } }
+.drift { animation: drift 90s linear infinite; }
+@keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.ticker { animation: ticker 40s linear infinite; }
+.hex { clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); }
+
+input[type=range] { accent-color: var(--agent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
