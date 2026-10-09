@@ -1,4 +1,4 @@
-from rootlane_toolbox.features import compute_features
+from rootlane_toolbox.analysis.features import compute_features
 from tests.conftest import FakeDB
 
 

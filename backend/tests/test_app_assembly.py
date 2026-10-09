@@ -1,12 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
-import rootlane_toolbox.app as appmod
-from rootlane_toolbox import deps
-from rootlane_toolbox.app import create_app
-from rootlane_toolbox.broker import Broker
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.guards import GuardError
+import rootlane_toolbox.api.app as appmod
+from rootlane_toolbox.api import deps
+from rootlane_toolbox.api.app import create_app
+from rootlane_toolbox.core.broker import Broker
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.core.guards import GuardError
 from tests.conftest import FakeDB
 
 ORIGIN = "https://app.rootlane.xyz"

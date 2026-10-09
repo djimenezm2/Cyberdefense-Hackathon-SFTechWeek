@@ -2,9 +2,9 @@ import json
 
 import httpx
 
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.decider import AkashMLDecider
-from rootlane_toolbox.guild import GuildTrigger
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.analysis.decider import AkashMLDecider
+from rootlane_toolbox.integrations.guild import GuildTrigger
 
 
 def _decider(content, status=200):

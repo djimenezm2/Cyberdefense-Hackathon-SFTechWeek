@@ -2,7 +2,7 @@
 
 The backend (`backend/`) accepts telemetry from the Juice Shop middleware
 (`juiceshop/telemetry/telemetry.ts`, wired by `juiceshop/patches/server-telemetry.patch`).
-Implementation: `backend/rootlane_toolbox/ingest.py`.
+Implementation: `backend/rootlane_toolbox/api/ingest.py`.
 
 ## Endpoint and auth
 

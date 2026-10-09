@@ -1,4 +1,4 @@
-from rootlane_toolbox.config import Settings
+from rootlane_toolbox.core.config import Settings
 
 
 def test_from_env_reads_values_and_defaults():

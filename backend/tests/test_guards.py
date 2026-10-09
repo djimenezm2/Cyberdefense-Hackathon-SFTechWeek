@@ -1,6 +1,6 @@
 import pytest
 
-from rootlane_toolbox.guards import (
+from rootlane_toolbox.core.guards import (
     GuardError,
     assert_approved,
     assert_read_only_sql,

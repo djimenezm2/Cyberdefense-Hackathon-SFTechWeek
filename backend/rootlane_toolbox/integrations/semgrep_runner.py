@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 from collections.abc import Callable, Sequence
 
-RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
+RULES_DIR = Path(__file__).resolve().parents[2] / "rules"
 DEFAULT_PACK = "p/typescript"
 Runner = Callable[[list[str], str], tuple[int, str]]
 

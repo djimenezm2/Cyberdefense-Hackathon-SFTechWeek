@@ -2,10 +2,10 @@ import threading
 
 from fastapi.testclient import TestClient
 
-import rootlane_toolbox.app as appmod
-from rootlane_toolbox import deps
-from rootlane_toolbox.app import create_app
-from rootlane_toolbox.config import Settings
+import rootlane_toolbox.api.app as appmod
+from rootlane_toolbox.api import deps
+from rootlane_toolbox.api.app import create_app
+from rootlane_toolbox.core.config import Settings
 from tests.conftest import FakeDB
 
 

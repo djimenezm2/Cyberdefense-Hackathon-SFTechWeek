@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
 from .deps import get_db, get_settings
-from .store import parse_iso
+from ..storage.store import parse_iso
 
 ingest_router = APIRouter()
 

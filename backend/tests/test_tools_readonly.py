@@ -7,11 +7,11 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from rootlane_toolbox import deps, tools
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.guards import GuardError
-from rootlane_toolbox.semgrep_runner import run_semgrep
-from rootlane_toolbox.store import IncidentStore
+from rootlane_toolbox.api import deps, tools
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.core.guards import GuardError
+from rootlane_toolbox.integrations.semgrep_runner import run_semgrep
+from rootlane_toolbox.storage.store import IncidentStore
 from tests.conftest import FakeDB
 
 KEY = {"X-API-Key": "agentkey", "X-Guild-Session": "gs_9c1"}

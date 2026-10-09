@@ -4,7 +4,7 @@ from collections.abc import Callable
 import clickhouse_connect
 from clickhouse_connect.driver import Client
 
-from .config import Settings
+from ..core.config import Settings
 
 
 def clickhouse_client(settings: Settings, *, read_only: bool = False) -> Client:

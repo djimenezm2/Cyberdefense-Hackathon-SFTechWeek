@@ -2,9 +2,9 @@ import os
 
 import pytest
 
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.db import clickhouse_client
-from rootlane_toolbox.features import compute_features
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.storage.db import clickhouse_client
+from rootlane_toolbox.analysis.features import compute_features
 
 pytestmark = pytest.mark.integration
 

@@ -2,11 +2,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from rootlane_toolbox import deps
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.dashboard import dashboard_router
-from rootlane_toolbox.ingest import ingest_router
-from rootlane_toolbox.store import IncidentStore
+from rootlane_toolbox.api import deps
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.api.dashboard import dashboard_router
+from rootlane_toolbox.api.ingest import ingest_router
+from rootlane_toolbox.storage.store import IncidentStore
 
 
 class RowsResult:

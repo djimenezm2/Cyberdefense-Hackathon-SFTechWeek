@@ -30,3 +30,6 @@ include = ["rootlane_toolbox*"]
 dev = [
     "semgrep>=1.79.0",
 ]
+
+[tool.setuptools.package-data]
+"rootlane_toolbox.storage" = ["schema/*.sql"]

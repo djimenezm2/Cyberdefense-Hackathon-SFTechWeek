@@ -1,7 +1,7 @@
 import pytest
 
 from rootlane_toolbox import __main__ as cli
-from rootlane_toolbox.migrate import (
+from rootlane_toolbox.storage.migrate import (
     MigrationConfigError,
     load_statements,
     prepare_statements,
