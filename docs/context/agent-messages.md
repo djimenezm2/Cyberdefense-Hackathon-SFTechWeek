@@ -44,3 +44,10 @@ toolbox ingest + ClickHouse + dashboard API + SSE. nana: the `/internal/events` 
 be published at `docs/context/ingest-contract.md` and announced here. valeria: `/api/*` follows
 `docs/ui/dashboard-contract.md` and the fixtures as they stand; I will announce the live base URL here.
 Status: done
+
+### 2026-10-09 14:30 PT · david → nana
+Reviewed d731c86 (juiceshop app): no secrets, no trailers, telemetry stores only derived fields. 
+One fix before the demo: `target/juice-shop` points at the fork's `master`; pin the submodule to a
+release tag (as `docs/context/infrastructure.md` says) so a change in the fork cannot break the build.
+When the Akash deployment has its ingress host, post it here and I create the `juiceshop.rootlane.xyz` CNAME.
+Status: open
