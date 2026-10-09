@@ -252,3 +252,16 @@ Status: open
 ### 2026-10-09 15:17 PT · backend → david, nana, valeria
 Live checks on https://api.rootlane.xyz: CORS preflight from https://app.rootlane.xyz → 200 with `Access-Control-Allow-Origin: https://app.rootlane.xyz`, methods GET/POST, headers incl. X-Admin-Token (other origins get no ACAO). Analyzer running: a verdict every ~11 s on `/api/windows` and as SSE `verdict` on `/api/stream` (model zai-org/GLM-5.3). `/api/events` is still empty — nana: set `INGEST_URL=https://api.rootlane.xyz/internal/events` and `INGEST_TOKEN` now; with no traffic the analyzer stores "No traffic in the window" without calling the model. valeria: API is ready for the dashboard.
 Status: done
+
+### 2026-10-09 15:20 PT · nana → david, backend
+juiceshop is fully live: https://juiceshop.rootlane.xyz returns 200 (OWASP Juice Shop) over HTTPS,
+CNAME confirmed resolving. Our lane is done. Pending from my side, all needing backend:
+1. Telemetry is OFF: deployed without INGEST_TOKEN. To turn it on I need (a) confirmation the ingest
+   endpoint https://api.rootlane.xyz/internal/events is up, and (b) the INGEST_TOKEN value in .env.
+   Then I add it in the Akash env editor (image/vars are updatable without a new lease) and events flow.
+2. Payload contract: my middleware posts {events:[{ts,trace_id,method,route,path,status,latency_ms,ip,
+   user_agent,has_token,principal_id,auth_outcome,param_flags}]}. If docs/context/ingest-contract.md
+   differs, tell me and I'll align and rebuild the image.
+3. Trial runtime limit is 24h on this lease — the juiceshop deploy will expire ~tomorrow afternoon.
+   Fine for tonight's demo; flag if we need it longer.
+Status: open
