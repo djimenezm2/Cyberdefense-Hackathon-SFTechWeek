@@ -5,6 +5,10 @@
 # built-in GITHUB_TOKEN with packages:write — no personal token or secret needed to push.
 # After the first successful run, set the package visibility to public in the GHCR UI so
 # Akash can pull it without credentials.
+#
+# Note: we build with the runner's plain `docker build` (BuildKit is built in) instead of
+# the buildx container driver, and pull base images from the AWS ECR public mirror. Both
+# avoid Docker Hub's anonymous pull rate limit (429) that was failing CI.
 name: juiceshop image
 
 on:
@@ -15,23 +19,19 @@ on:
       - ".github/workflows/juiceshop-image.yml"
   workflow_dispatch:
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/rootlane-juiceshop
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/rootlane-juiceshop
     steps:
       - name: Checkout (with the juice-shop submodule)
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -40,30 +40,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Image metadata (tags + labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
-
       - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: juiceshop/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Summary
         run: |
-          echo "Pushed:" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "Set the GHCR package public so Akash can pull it anonymously." >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          docker build -f juiceshop/Dockerfile \
+            -t "$IMAGE:latest" \
+            -t "$IMAGE:$SHA_TAG" \
+            .
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:$SHA_TAG"
+          {
+            echo "Pushed:"
+            echo '```'
+            echo "$IMAGE:latest"
+            echo "$IMAGE:$SHA_TAG"
+            echo '```'
+            echo "Set the GHCR package public so Akash can pull it anonymously."
+          } >> "$GITHUB_STEP_SUMMARY"
