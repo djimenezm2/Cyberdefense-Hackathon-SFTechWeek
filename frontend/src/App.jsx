@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, ShieldAlert, FileCheck2, LogOut, ScrollText } from 'lucide-react'
-import { useAgent, MODE } from './lib/useAgent'
+import { useAgent, MODE, readAuth, writeAuth } from './lib/useAgent'
 import TopBar from './components/TopBar'
 import Kpis from './components/Kpis'
 import LiveSignals from './components/LiveSignals'
@@ -74,7 +74,7 @@ export default function App() {
               {id === 'incidents' && active > 0 && <span className="ml-auto rounded bg-warn/20 px-1.5 font-mono text-[10px] text-warn">{active}</span>}
             </button>
           ))}
-          <button onClick={() => { write(false); setSignedIn(false) }}
+          <button onClick={() => { write(false); setSignedIn(false); if (readAuth().github) { writeAuth(null); fetch('/api/auth?a=logout', { method: 'POST' }).catch(() => {}) } }}
             className="btn shrink-0 justify-start text-mute-400 hover:bg-ink-850 hover:text-mute-200 lg:mt-auto">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
