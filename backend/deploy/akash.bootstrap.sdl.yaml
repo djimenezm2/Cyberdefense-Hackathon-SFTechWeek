@@ -1,0 +1,68 @@
+version: "2.0"
+
+# Runs the toolbox from a stock Python image: each start clones main and installs the backend.
+services:
+  toolbox:
+    image: python:3.12-slim-bookworm
+    command:
+      - sh
+      - -c
+    args:
+      - >-
+        set -e;
+        apt-get update && apt-get install -y --no-install-recommends git ca-certificates;
+        pip install --no-cache-dir uv;
+        rm -rf /app/repo && git clone --depth 1 https://github.com/djimenezm2/Cyberdefense-Hackathon-SFTechWeek /app/repo;
+        cd /app/repo/backend && uv sync --frozen --no-dev;
+        exec uv run --no-dev uvicorn rootlane_toolbox.app:create_app --factory --host 0.0.0.0 --port 8000
+    env:
+      - CLICKHOUSE_HOST=__SET_AT_DEPLOY__
+      - CLICKHOUSE_USER=__SET_AT_DEPLOY__
+      - CLICKHOUSE_PASSWORD=__SET_AT_DEPLOY__
+      - CLICKHOUSE_RO_USER=__SET_AT_DEPLOY__
+      - CLICKHOUSE_RO_PASSWORD=__SET_AT_DEPLOY__
+      - TOOLBOX_API_KEY=__SET_AT_DEPLOY__
+      - ADMIN_TOKEN=__SET_AT_DEPLOY__
+      - INGEST_TOKEN=__SET_AT_DEPLOY__
+      - CORS_ORIGINS=__SET_AT_DEPLOY__
+      - TRIAGE_BASE_URL=__SET_AT_DEPLOY__
+      - TRIAGE_MODEL=__SET_AT_DEPLOY__
+      - TRIAGE_API_KEY=__SET_AT_DEPLOY__
+      - ANALYZE_INTERVAL_S=__SET_AT_DEPLOY__
+      - GUILD_WORKSPACE=__SET_AT_DEPLOY__
+      - GUILD_TRIGGER_KEY_ID=__SET_AT_DEPLOY__
+      - GUILD_TRIGGER_SECRET=__SET_AT_DEPLOY__
+      - GITHUB_TOKEN=__SET_AT_DEPLOY__
+      - JUICE_SHOP_REPO=__SET_AT_DEPLOY__
+      - SENSO_API_KEY=__SET_AT_DEPLOY__
+      - AKASH_CONSOLE_API_KEY=__SET_AT_DEPLOY__
+    expose:
+      - port: 8000
+        as: 80
+        accept:
+          - api.rootlane.xyz
+        to:
+          - global: true
+
+profiles:
+  compute:
+    toolbox:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          - size: 5Gi
+  placement:
+    akash:
+      pricing:
+        toolbox:
+          denom: uact
+          amount: 10000
+
+deployment:
+  toolbox:
+    akash:
+      profile: toolbox
+      count: 1
