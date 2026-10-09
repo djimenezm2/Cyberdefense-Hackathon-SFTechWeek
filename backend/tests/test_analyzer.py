@@ -184,6 +184,14 @@ def test_failed_guild_start_is_recorded_on_the_stored_incident():
     assert "Guild session not started" in db.inserted["incidents"][-1][-1]
 
 
+def test_skipped_escalation_is_logged(caplog):
+    open_rows = {"FROM incidents FINAL WHERE status NOT IN": [[1]], **BUSY}
+    a, _, _, _ = _analyzer("escalate", None, responses=open_rows)
+    with caplog.at_level("INFO"):
+        a.run_once(now=NOW)
+    assert "escalation skipped" in caplog.text
+
+
 def test_escalate_while_an_incident_is_open_opens_no_new_one():
     open_rows = {"FROM incidents FINAL WHERE status NOT IN": [[1]], **BUSY}
     a, db, broker, _ = _analyzer("escalate", "gs_1", responses=open_rows)

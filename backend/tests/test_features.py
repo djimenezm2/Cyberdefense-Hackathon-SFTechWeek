@@ -31,10 +31,11 @@ def test_features_query_parameters_use_clickhouse_datetime_text():
             return super().query(sql, parameters)
 
     compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40.500Z")
-    assert seen[0] == {"start": "2026-10-09 21:00:30.000", "end": "2026-10-09 21:00:40.500"}
+    assert seen[0]["start"] == "2026-10-09 21:00:30.000"
+    assert seen[0]["end"] == "2026-10-09 21:00:40.500"
 
 
-def _sqls(db_cls_responses=None):
+def _sqls():
     seen = []
 
     class SpyDB(FakeDB):
@@ -45,12 +46,19 @@ def _sqls(db_cls_responses=None):
     return seen, SpyDB
 
 
-def test_new_principal_is_derived_from_http_requests_only():
-    seen, SpyDB = _sqls()
+def test_new_principal_looks_back_over_earlier_requests_within_a_day():
+    seen = []
+
+    class SpyDB(FakeDB):
+        def query(self, sql, parameters=None):
+            seen.append((sql, parameters))
+            return super().query(sql, parameters)
+
     compute_features(SpyDB(), "2026-10-09T21:00:30Z", "2026-10-09T21:00:40Z")
-    principals_sql = next(q for q in seen if "GROUP BY principal_id" in q)
-    assert "auth_events" not in principals_sql
-    assert "auth_outcome = 'login_success'" in principals_sql
+    sql, params = next(q for q in seen if "GROUP BY principal_id" in q[0])
+    assert "auth_events" not in sql and "login_success" not in sql
+    assert "ts <= {start:String}" in sql and "ts >= {lookback:String}" in sql
+    assert params["lookback"] == "2026-10-08 21:00:30.000"
 
 
 def test_feature_rows_are_capped_at_the_busiest_twenty():

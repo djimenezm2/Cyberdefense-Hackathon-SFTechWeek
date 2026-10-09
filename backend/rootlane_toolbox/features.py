@@ -1,12 +1,16 @@
+from datetime import timedelta
+
 from .store import parse_iso
+
+LOOKBACK = timedelta(hours=24)
 
 _PRINCIPALS = """
 SELECT principal_id, count() AS requests, countIf(status >= 400) AS errors,
        uniqExact(ip) AS distinct_ips, uniqExact(route) AS distinct_routes,
        principal_id NOT IN (
          SELECT principal_id FROM http_requests
-         WHERE auth_outcome = 'login_success' AND principal_id != ''
-           AND ts <= {end:String}) AS new_principal
+         WHERE principal_id != ''
+           AND ts >= {lookback:String} AND ts <= {start:String}) AS new_principal
 FROM http_requests
 WHERE ts > {start:String} AND ts <= {end:String} AND principal_id != ''
 GROUP BY principal_id
@@ -24,9 +28,10 @@ ORDER BY requests DESC LIMIT 20
 """
 
 
-def _ch_text(value: str) -> str:
-    """Render an ISO-8601 instant as ClickHouse DateTime64(3) text."""
-    return parse_iso(value).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+def _ch_text(value) -> str:
+    """Render an ISO-8601 string or datetime as ClickHouse DateTime64(3) text."""
+    moment = parse_iso(value) if isinstance(value, str) else value
+    return moment.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 
 def compute_features(db, window_start: str, window_end: str) -> dict:
@@ -42,7 +47,8 @@ def compute_features(db, window_start: str, window_end: str) -> dict:
         dict: Window bounds plus two lists of scenario-agnostic feature rows.
     """
     params = {"start": _ch_text(window_start), "end": _ch_text(window_end)}
-    pr = db.query(_PRINCIPALS, parameters=params)
+    lookback = _ch_text(parse_iso(window_start) - LOOKBACK)
+    pr = db.query(_PRINCIPALS, parameters={**params, "lookback": lookback})
     ips = db.query(_IPS, parameters=params)
     principals = [
         {

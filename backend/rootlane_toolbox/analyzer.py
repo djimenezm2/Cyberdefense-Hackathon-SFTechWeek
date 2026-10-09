@@ -68,8 +68,11 @@ class Analyzer:
                 "rationale": decision["rationale"],
             },
         )
-        if decision["verdict"] == "escalate" and self._store.open_count() == 0:
-            self._open_incident(end_dt, decision)
+        if decision["verdict"] == "escalate":
+            if self._store.open_count() == 0:
+                self._open_incident(end_dt, decision)
+            else:
+                log.info("escalation skipped: an incident is already open")
 
     def _decide(self, features: dict) -> dict:
         try:
