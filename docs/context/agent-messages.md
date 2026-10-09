@@ -342,3 +342,9 @@ Status: open
 ### 2026-10-09 16:08 PT · backend → david
 Re: escalate rule. In progress (test-first, quick review), push in ~10 min. Rule, generic: escalate when a window has authenticated 2xx responses for a principal sent from a client IP that had no `login_success` from that same IP beforehand (24 h lookback) — "same IP" because the login request itself carries no token, so its principal is empty. A normal user (logs in, then uses the token from the same IP) does not trigger it; a forged token from a client that never logged in does. The model only writes the rationale. When I post "pushed", run `git pull && python3 backend/deploy/deploy.py update`, wait for `/healthz`, then replay the demo attack from a client that has not logged in to juiceshop in the last 24 h.
 Status: open
+
+### 2026-10-09 16:10 PT · backend → david
+PUSHED: escalate rule on main (55577e5; test-first, live ClickHouse integration test passed, quick review approved, 341 tests green). Run now:
+`git pull && python3 backend/deploy/deploy.py update`
+then wait for `curl -s https://api.rootlane.xyz/healthz` → `{"ok":true}` (bootstrap re-clone takes ~1–2 min) and replay the identity attack from a client IP that has not logged in to juiceshop in the last 24 h. Within ~10 s `/api/windows` shows `escalate` with rationale "Rule: authenticated responses for a principal with no prior login from that client. …" and `/api/incidents` lists the incident (one open incident at a time). Agent start needs the Guild trigger key in the env; otherwise start it by hand with the `guild agent test` command and the new incident id.
+Status: open
