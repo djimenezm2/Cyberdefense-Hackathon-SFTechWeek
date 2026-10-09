@@ -1,6 +1,6 @@
 import httpx
 
-from .config import Settings
+from ..core.config import Settings
 
 
 class GuildTrigger:

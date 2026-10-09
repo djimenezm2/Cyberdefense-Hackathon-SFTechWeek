@@ -1,9 +1,9 @@
 import os
 import sys
 
-from .config import Settings
-from .db import clickhouse_client
-from .migrate import MigrationConfigError, load_statements, prepare_statements, run_migrations
+from .core.config import Settings
+from .storage.db import clickhouse_client
+from .storage.migrate import MigrationConfigError, load_statements, prepare_statements, run_migrations
 
 
 def main(argv: list[str]) -> int:

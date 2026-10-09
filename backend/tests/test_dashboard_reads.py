@@ -1,5 +1,5 @@
-from rootlane_toolbox.models import IncidentDetail
-from rootlane_toolbox.store import IncidentStore, now_iso
+from rootlane_toolbox.core.models import IncidentDetail
+from rootlane_toolbox.storage.store import IncidentStore, now_iso
 from tests.conftest import FakeDB
 
 

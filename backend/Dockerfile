@@ -55,4 +55,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 USER rootlane
 EXPOSE 8000
-CMD ["uvicorn", "rootlane_toolbox.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "rootlane_toolbox.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

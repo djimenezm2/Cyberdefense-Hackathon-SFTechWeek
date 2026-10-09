@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from .store import parse_iso
+from ..storage.store import parse_iso
 
 LOOKBACK = timedelta(hours=24)
 

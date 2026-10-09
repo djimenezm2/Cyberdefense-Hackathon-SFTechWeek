@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from rootlane_toolbox.analyzer import INGEST_DELAY_S, Analyzer
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.store import IncidentStore
+from rootlane_toolbox.analysis.analyzer import INGEST_DELAY_S, Analyzer
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.storage.store import IncidentStore
 from tests.conftest import FakeDB
 
 NOW = datetime(2026, 10, 9, 21, 0, 40, tzinfo=timezone.utc)

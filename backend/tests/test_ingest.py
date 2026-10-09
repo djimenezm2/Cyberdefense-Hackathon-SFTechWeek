@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from rootlane_toolbox.config import Settings
+from rootlane_toolbox.core.config import Settings
 from tests.conftest import FakeDB
 
 AUTH = {"Authorization": "Bearer ingest-secret"}

@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from .broker import Broker
+from ..core.broker import Broker
 from .deps import get_broker, get_ping_interval
 
 stream_router = APIRouter()

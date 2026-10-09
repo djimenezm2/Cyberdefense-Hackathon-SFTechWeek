@@ -2,11 +2,11 @@ import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
 
-import rootlane_toolbox.app as appmod
-import rootlane_toolbox.db as dbmod
-from rootlane_toolbox.config import Settings
-from rootlane_toolbox.db import LazyClient, ReadOnlyUnavailable
-from rootlane_toolbox.deps import get_ro_db
+import rootlane_toolbox.api.app as appmod
+import rootlane_toolbox.storage.db as dbmod
+from rootlane_toolbox.core.config import Settings
+from rootlane_toolbox.storage.db import LazyClient, ReadOnlyUnavailable
+from rootlane_toolbox.api.deps import get_ro_db
 from tests.conftest import FakeDB
 
 

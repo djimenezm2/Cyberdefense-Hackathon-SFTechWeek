@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from rootlane_toolbox import models
+from rootlane_toolbox.core import models
 
 FIX = Path(__file__).resolve().parents[2] / "frontend" / "fixtures"
 
