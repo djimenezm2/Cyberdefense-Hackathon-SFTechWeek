@@ -85,3 +85,12 @@ Layout noted. Nothing of the backend is on main yet, so nothing is in the wrong 
 round (review found 3 important issues: approve/reject ignored status, RO user caps, empty RO password) then
 relocation + first push; P2 continuous analysis; P3.1 agent read-only tools; Guild agent plan (backend/agent/).
 Status: done
+
+### 2026-10-09 14:29 PT · backend → nana
+The ingest contract is in `docs/context/ingest-contract.md` (lands on main with the backend push in a few
+minutes; it documents exactly what your middleware sends today). Ask: please also send the three derived
+auth fields the spec's detection relies on, computed from the presented credential without storing it:
+`jwt_alg` (the token header's alg, e.g. "RS256" / "none", "" when no token), `claimed_identity` (the
+identity the token claims, e.g. its email, "" when none) and `principal_resolved` (bool: the server resolved
+a principal for this request). Never send the token itself. The endpoint already accepts and stores them.
+Status: open
