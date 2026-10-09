@@ -412,20 +412,29 @@ class SandboxManager:
 
         Raises:
             SandboxBusy: If another replica is still running.
-            SandboxError: If the replica cannot be built or started.
+            SandboxError: If the replica cannot be built, started or reached.
         """
         self._acquire()
         try:
             with self._builder("") as replica:
-                return replay(self._client, replica.base_url, reproduction)
+                return self._replay(replica.base_url, reproduction)
         finally:
             self._lock.release()
+
+    def _replay(self, base_url: str, reproduction: Reproduction) -> dict:
+        try:
+            return replay(self._client, base_url, reproduction)
+        except httpx.HTTPError as exc:
+            raise SandboxError(f"replay on the replica failed: {exc!r}") from exc
 
     def _scan(self, rule_path: str, paths: list[str], source_dir: str) -> int:
         present = [p for p in paths if os.path.isfile(os.path.join(source_dir, p))]
         if not present:
             return 0
-        return self._semgrep(rule_path, present, cwd=source_dir)["findings"]
+        try:
+            return self._semgrep(rule_path, present, cwd=source_dir)["findings"]
+        except RuntimeError as exc:
+            raise PatchError(f"rule could not run: {exc}") from exc
 
     def verify_patch(self, diff: str, rule_yaml: str, reproduction: Reproduction) -> dict:
         """
@@ -440,7 +449,8 @@ class SandboxManager:
                 `replica_after`, `regression`, `semgrep_old`, `semgrep_new`.
 
         Raises:
-            PatchError: If the diff is malformed, does not apply or does not build.
+            PatchError: If the diff is malformed, does not apply or does not build, or the rule
+                cannot run.
             SandboxBusy: If another replica is still running.
             SandboxError: If a replica cannot be built or started.
         """
@@ -453,10 +463,10 @@ class SandboxManager:
                 with open(rule_path, "w", encoding="utf-8") as fh:
                     fh.write(rule_yaml)
                 with self._builder("") as old:
-                    before = replay(self._client, old.base_url, reproduction)
+                    before = self._replay(old.base_url, reproduction)
                     semgrep_old = self._scan(rule_path, paths, old.source_dir)
                 with self._builder(diff) as new:
-                    after = replay(self._client, new.base_url, reproduction)
+                    after = self._replay(new.base_url, reproduction)
                     regression = self._smoke(self._client, new.base_url)
                     semgrep_new = self._scan(rule_path, paths, new.source_dir)
         finally:

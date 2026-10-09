@@ -12,6 +12,7 @@ from rootlane_toolbox.integrations.sandbox import (
     PatchError,
     Replica,
     SandboxBusy,
+    SandboxError,
     SandboxManager,
     parse_reproduction,
     touched_files,
@@ -104,11 +105,37 @@ def test_verify_fails_unless_every_check_holds(over):
     assert Harness(**over).manager().verify_patch(DIFF, "y", REPRO)["passed"] is False
 
 
-def test_replica_is_torn_down_when_a_check_raises():
+def test_a_rule_semgrep_cannot_run_is_a_patch_error_after_teardown():
     h = Harness(fail_in="semgrep")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(PatchError, match="rule could not run: semgrep exited with code 2"):
         h.manager().verify_patch(DIFF, "y", REPRO)
     assert h.torn_down == ["old"]
+
+
+def test_a_replay_transport_failure_is_a_sandbox_error():
+    h = Harness()
+
+    def handler(request):
+        raise httpx.ReadTimeout("timed out")
+
+    mgr = SandboxManager(Settings(), builder=h.builder, semgrep=h.semgrep, smoke=h.smoke,
+                         client=httpx.Client(transport=httpx.MockTransport(handler)))
+    with pytest.raises(SandboxError, match="replay on the replica failed"):
+        mgr.reproduce(REPRO)
+    assert h.torn_down == ["old"]
+
+
+def test_replica_is_torn_down_when_a_check_raises():
+    h = Harness()
+    mgr = h.manager()
+
+    def broken_smoke(client, base_url):
+        raise httpx.ConnectError("replica went away")
+
+    mgr._smoke = broken_smoke
+    with pytest.raises(httpx.ConnectError):
+        mgr.verify_patch(DIFF, "y", REPRO)
+    assert h.torn_down == ["old", "new"]
 
 
 def test_patch_errors_propagate_after_teardown():
