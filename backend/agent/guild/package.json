@@ -23,6 +23,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@guildai-services/djimenezm2~rootlane-toolbox": "^1.0.0",
     "@guildai/agents-sdk": "*",
     "zod": "~4.3.0"
   },

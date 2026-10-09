@@ -15,9 +15,10 @@ import {
   consoleTools,
   agent,
   // pick,
+  guildTools,
   userInterfaceTools,
 } from "@guildai/agents-sdk";
-// import { gitHubTools } from "@guildai-services/guildai~github";
+import { RootlaneToolboxTools } from "@guildai-services/djimenezm2~rootlane-toolbox";
 import { z } from "zod";
 
 // TODO: describe the format of the input that your agent expects using a Zod
@@ -58,6 +59,8 @@ const tools = {
 
   // ...for smaller services, you can include all the tools using
   // syntax like the following:
+  ...RootlaneToolboxTools,
+  ...guildTools,
   ...userInterfaceTools,
 
   // Required for task.console.log/debug/warn/error.
