@@ -14,7 +14,7 @@ stream_router = APIRouter()
 
 def format_sse(event: str, data: dict[str, Any]) -> str:
     """Render one server-sent event message."""
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
 async def event_stream(broker: Broker, ping_interval_s: float) -> AsyncIterator[str]:

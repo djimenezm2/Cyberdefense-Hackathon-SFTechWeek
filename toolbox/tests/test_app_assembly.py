@@ -6,6 +6,7 @@ from rootlane_toolbox import deps
 from rootlane_toolbox.app import create_app
 from rootlane_toolbox.broker import Broker
 from rootlane_toolbox.config import Settings
+from rootlane_toolbox.guards import GuardError
 from tests.conftest import FakeDB
 
 ORIGIN = "https://app.rootlane.xyz"
@@ -57,3 +58,12 @@ def test_cors_does_not_allow_other_origins(client):
 
 def test_no_static_mount(client):
     assert client.get("/").status_code == 404
+
+
+def test_guard_error_becomes_400(client):
+    def boom():
+        raise GuardError("not allowed")
+
+    client.app.add_api_route("/_boom", boom)
+    r = client.get("/_boom")
+    assert r.status_code == 400 and r.json() == {"detail": "not allowed"}

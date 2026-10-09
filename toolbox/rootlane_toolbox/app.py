@@ -2,11 +2,13 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import deps
 from .config import Settings
 from .dashboard import dashboard_router
 from .db import clickhouse_client
+from .guards import GuardError
 from .ingest import ingest_router
 from .store import IncidentStore
 from .stream import stream_router
@@ -39,6 +41,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=settings.cors_origin_list,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "X-Admin-Token"],
+    )
+    app.add_exception_handler(
+        GuardError, lambda request, error: JSONResponse(status_code=400, content={"detail": str(error)})
     )
     app.include_router(ingest_router)
     app.include_router(dashboard_router)

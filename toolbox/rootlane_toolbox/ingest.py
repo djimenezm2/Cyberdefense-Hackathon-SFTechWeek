@@ -43,7 +43,7 @@ class IngestEvent(BaseModel):
     method: str
     route: str
     status: int = Field(ge=0, le=65535)
-    latency_ms: int = Field(ge=0)
+    latency_ms: int = Field(ge=0, le=4294967295)
     ip: str
     principal_id: str = ""
     auth_outcome: str = "none"

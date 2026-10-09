@@ -137,3 +137,10 @@ async def test_store_publishes_step_when_recorded():
     assert event == "step"
     assert data["incident_id"] == "inc_01" and data["kind"] == "query"
     assert set(data) == set(SHAPES["step"])
+
+
+def test_format_sse_serializes_datetimes_instead_of_failing():
+    from datetime import datetime, timezone
+
+    message = format_sse("step", {"ts": datetime(2026, 10, 9, tzinfo=timezone.utc)})
+    assert message.startswith("event: step\ndata: ") and "2026-10-09" in message

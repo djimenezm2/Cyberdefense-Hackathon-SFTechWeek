@@ -132,3 +132,11 @@ def test_non_ascii_bearer_is_401_not_500(make_app):
     client = make_app(settings=_settings())
     headers = {"Authorization": "Bearer ".encode() + "é".encode("latin-1")}
     assert _post(client, {"events": [_event()]}, headers=headers).status_code == 401
+
+
+def test_out_of_range_numbers_reject_only_that_event(make_app):
+    db = FakeDB()
+    client = make_app(settings=_settings(), db=db)
+    payload = {"events": [_event(), _event(latency_ms=2**32), _event(status=70000)]}
+    assert _post(client, payload).json() == {"accepted": 1, "rejected": 2}
+    assert len(db.inserted["http_requests"]) == 1

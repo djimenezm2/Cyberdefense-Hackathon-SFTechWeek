@@ -70,3 +70,45 @@ def test_approval_gate_requires_matching_approve():
     ):
         with pytest.raises(GuardError):
             assert_approved(bad, "p_1")
+
+
+@pytest.mark.parametrize(
+    "fn",
+    ["url", "s3", "s3Cluster", "file", "remote", "remoteSecure", "cluster", "clusterAllReplicas",
+     "executable", "mysql", "postgresql", "jdbc", "odbc", "hdfs", "azureBlobStorage", "input",
+     "numbers", "numbers_mt", "zeros", "generateRandom", "merge", "dictionary"],
+)
+def test_read_only_sql_rejects_table_functions(fn):
+    for call in (f"SELECT * FROM {fn}('x')", f"SELECT * FROM {fn.upper()} ('x')"):
+        with pytest.raises(GuardError):
+            assert_read_only_sql(call)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1 SETTINGS max_threads = 1",
+        "SELECT * FROM http_requests INTO OUTFILE '/tmp/x'",
+        "SELECT * FROM http_requests FORMAT CSV",
+        "SELECT 1 # trailing comment",
+    ],
+)
+def test_read_only_sql_rejects_settings_outfile_format_and_hash_comments(sql):
+    with pytest.raises(GuardError):
+        assert_read_only_sql(sql)
+
+
+def test_read_only_sql_keeps_allowing_similar_looking_names():
+    assert assert_read_only_sql("SELECT formatDateTime(ts, '%Y') FROM http_requests")
+    assert assert_read_only_sql("SELECT count() FROM http_requests WHERE route = 'numbers'")
+
+
+def test_path_guard_rejects_embedded_nul(tmp_path):
+    with pytest.raises(GuardError):
+        resolve_source_path(str(tmp_path), "lib/a\x00b")
+
+
+def test_verify_gate_requires_boolean_true():
+    diff = "d"
+    with pytest.raises(GuardError):
+        assert_verify_passed({"hash": diff_hash(diff), "passed": "false"}, diff)
