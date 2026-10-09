@@ -128,6 +128,22 @@ def test_error_message_reads_error_field_and_survives_non_json():
     assert deploy.error_message(502, b"<html>secret</html>") == "502: "
 
 
+def test_request_sends_custom_user_agent():
+    request = deploy.build_request("POST", "/v1/deployments", "key", {"data": {"sdl": "x"}})
+    agent = request.get_header("User-agent")
+    assert agent and not agent.startswith("Python-urllib")
+    assert request.get_header("X-api-key") == "key"
+
+
+def test_error_message_shows_cloudflare_error_code():
+    assert deploy.error_message(403, b"error code: 1010") == "403: error code: 1010"
+
+
+def test_error_message_appends_akash_error_code():
+    body = b'{"error": "Forbidden", "message": "", "code": "sealed_for_other_user", "sdl": "secret"}'
+    assert deploy.error_message(403, body) == "403: Forbidden (code sealed_for_other_user)"
+
+
 def test_bootstrap_sdl_renders_from_full_env():
     out = deploy.render_sdl(deploy.SDLS["bootstrap"].read_text(), deploy.deploy_env(REQUIRED))
     assert "python:3.12-slim-bookworm" in out

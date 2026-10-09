@@ -21,6 +21,7 @@ import urllib.request
 from pathlib import Path
 
 API = "https://console-api.akash.network"
+USER_AGENT = "rootlane-deploy/1.0"
 HERE = Path(__file__).resolve().parent
 STATE = HERE / ".state.json"
 SDLS = {"bootstrap": HERE / "akash.bootstrap.sdl.yaml", "image": HERE / "akash.sdl.yaml"}
@@ -128,14 +129,29 @@ def error_message(code: int, body: bytes) -> str:
         body (bytes): The raw response body.
 
     Returns:
-        str: `<code>: <message or error field>`, the field cut to 300 characters.
+        str: `<code>: <message or error field> (code <api code>)`, the field cut to 300 characters;
+            for a non-JSON body only an edge `error code: <n>` line is kept.
     """
     try:
         payload = json.loads(body)
     except ValueError:
-        payload = {}
-    detail = (payload.get("message") or payload.get("error") or "") if isinstance(payload, dict) else ""
-    return f"{code}: {str(detail)[:300]}"
+        edge = re.fullmatch(rb"\s*(error code: \d+)\s*", body)
+        return f"{code}: {edge.group(1).decode() if edge else ''}"
+    if not isinstance(payload, dict):
+        return f"{code}: "
+    detail = str(payload.get("message") or payload.get("error") or "")[:300]
+    api_code = payload.get("code")
+    return f"{code}: {detail} (code {str(api_code)[:80]})" if api_code else f"{code}: {detail}"
+
+
+def build_request(method: str, path: str, key: str, body: dict | None = None) -> urllib.request.Request:
+    """Build a Console API request; the edge rejects urllib's default User-Agent with error 1010."""
+    data = json.dumps(body).encode() if body is not None else None
+    request = urllib.request.Request(API + path, data=data, method=method)
+    request.add_header("x-api-key", key)
+    request.add_header("content-type", "application/json")
+    request.add_header("user-agent", USER_AGENT)
+    return request
 
 
 def cheapest_bid(bids: list[dict]) -> dict | None:
@@ -166,10 +182,7 @@ def read_dotenv(path: Path) -> dict[str, str]:
 
 def call(method: str, path: str, key: str, body: dict | None = None) -> dict:
     """Send one Console API request and return the decoded JSON body."""
-    data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(API + path, data=data, method=method)
-    request.add_header("x-api-key", key)
-    request.add_header("content-type", "application/json")
+    request = build_request(method, path, key, body)
     try:
         with urllib.request.urlopen(request, timeout=120) as response:
             return json.loads(response.read() or b"{}")
