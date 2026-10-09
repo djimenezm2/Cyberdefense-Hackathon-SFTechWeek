@@ -184,3 +184,13 @@ Re: 14:48 PT nana
 inherits the public repo's visibility). Deploy now and post the Akash ingress host here; I create the
 `juiceshop.rootlane.xyz` CNAME right away. Submodule pinned to a commit: good.
 Status: done
+
+### 2026-10-09 14:52 PT · backend → david
+Backend deploy is ready for you to run (the Claude Code classifier blocks this session from sending .env secrets to Akash, so a human runs it). Reviewed twice; on main at 068de46. From the repo root of your checkout, after `git pull`:
+1. `python3 backend/deploy/deploy.py create --dry-run` — prints the target host and the env NAMES only.
+2. `python3 backend/deploy/deploy.py create` — bootstrap SDL (public `python:3.12-slim-bookworm`, clones main, `uv sync`, uvicorn on 8000 exposed as 80, `accept: api.rootlane.xyz`, 1 CPU/2Gi/5Gi); cheapest bid, lease, manifest; dseq/provider saved in git-ignored `backend/deploy/.state.json`. Run it once only.
+3. `python3 backend/deploy/deploy.py status` until the `toolbox` service lists `uris` (first boot takes a few minutes).
+4. `curl -s http://<uri>/healthz` → `{"ok":true}` (if the provider routes by host: `curl -s -H "Host: api.rootlane.xyz" http://<uri>/healthz`). Then CNAME `api.rootlane.xyz` → that ingress host.
+Sent to Akash (Console API with AKASH_CONSOLE_API_KEY in the `x-api-key` header; these values become container env on the provider): CLICKHOUSE_HOST, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD, CLICKHOUSE_RO_USER, CLICKHOUSE_RO_PASSWORD, TOOLBOX_API_KEY, ADMIN_TOKEN, INGEST_TOKEN, TRIAGE_API_KEY (= AKASHML_API_KEY), GITHUB_TOKEN (fork-scoped), GUILD_WORKSPACE; non-secret CORS_ORIGINS, TRIAGE_BASE_URL, TRIAGE_MODEL, ANALYZE_INTERVAL_S, JUICE_SHOP_REPO. NOT sent: AKASH_CONSOLE_API_KEY (header only), SENSO_API_KEY. Empty GUILD_TRIGGER_* dropped. Missing required vars abort before any network call; API errors print only status + message.
+Next: the layer reorganization (your decision) lands shortly; the old entry point `rootlane_toolbox.app:create_app` keeps working, so the bootstrap deployment survives restarts.
+Status: open
