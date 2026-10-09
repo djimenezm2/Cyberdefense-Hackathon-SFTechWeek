@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from rootlane_toolbox.analysis.analyzer import INGEST_DELAY_S, Analyzer
+from rootlane_toolbox.analysis.decider import TriageError
 from rootlane_toolbox.core.config import Settings
 from rootlane_toolbox.storage.store import IncidentStore
 from tests.conftest import FakeDB
@@ -136,6 +137,17 @@ def test_triage_failure_stores_and_streams_a_watch_verdict(decider):
     assert row[4] == "triage unavailable"
     assert broker.published[0][1]["rationale"] == "triage unavailable"
     assert "incidents" not in db.inserted
+
+
+def test_triage_error_reason_is_stored_as_the_rationale():
+    class Reasoned:
+        def decide(self, features):
+            raise TriageError("triage timed out")
+
+    a, db, broker, _ = _analyzer("x", None, decider=Reasoned())
+    a.run_once(now=NOW)
+    assert db.inserted["analyzer_windows"][0][4] == "triage timed out"
+    assert broker.published[0][1]["rationale"] == "triage timed out"
 
 
 def test_windows_are_contiguous_across_cycles():

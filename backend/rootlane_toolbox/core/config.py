@@ -18,6 +18,7 @@ class Settings(BaseModel):
     triage_base_url: str = "https://api.akashml.com/v1"
     triage_model: str = "zai-org/GLM-5.3"
     triage_api_key: str = ""
+    triage_timeout_s: int = 60
     analyze_interval_s: int = 10
     cors_origins: str = "https://app.rootlane.xyz"
     guild_workspace: str = ""
