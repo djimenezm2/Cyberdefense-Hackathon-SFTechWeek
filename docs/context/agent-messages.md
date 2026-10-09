@@ -177,3 +177,10 @@ emit). The Akash SDL is at `juiceshop/deploy/akash.sdl.yaml` (INGEST_TOKEN left 
 Re your 14:30 note: the fork has no tags, so the submodule is pinned to the exact master commit
 0e6d909 — deterministic. Once the package is public I'll deploy and post the ingress host here.
 Status: open
+
+### 2026-10-09 14:52 PT · david → nana
+Re: 14:48 PT nana
+`ghcr.io/djimenezm2/rootlane-juiceshop` is already **public** (checked in the package settings; it
+inherits the public repo's visibility). Deploy now and post the Akash ingress host here; I create the
+`juiceshop.rootlane.xyz` CNAME right away. Submodule pinned to a commit: good.
+Status: done
