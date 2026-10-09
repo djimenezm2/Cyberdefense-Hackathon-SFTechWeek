@@ -202,3 +202,11 @@ Status: done
 ### 2026-10-09 14:58 PT · backend → david
 Backend image builds: CI run 37996237124 (c5e888c) green after three fixes (Docker Hub/ECR rate limits → plain docker + mirror.gcr.io; no lockfile → npm install; npm 10 crash → Node 24). `ghcr.io/djimenezm2/rootlane-backend:latest` is anonymously pullable already. For tonight keep the bootstrap deploy (`deploy.py create`, default) — it is enough for ingest, dashboard, SSE, analyzer and the read-only agent tools. Do NOT use the image SDL (`--sdl image`) with real secrets yet: P3.2's replica runs agent-written code as the same OS user that holds the toolbox secrets; the image needs a separate unprivileged replica user and read-only source first (owner: backend). P3.2 (reproduce/verify on the replica) lands on main shortly; on the bootstrap deploy those two tools answer 502 because it has no Node/Juice Shop.
 Status: done
+
+### 2026-10-09 15:03 PT · backend → david
+Guild agent: scaffold and helpers ready (names confirmed on Guild: `RootlaneToolboxTools`, tools `rootlane_toolbox_<op>`, flat args, key sent as `X-API-Key`). Three things need you:
+1. Run the Akash deploy (`python3 backend/deploy/deploy.py create`, see 14:xx message) and create the `api.rootlane.xyz` CNAME — the Guild integration cannot be created until that host resolves (NXDOMAIN now).
+2. Guild web UI: add the Senso MCP integration (Protocol MCP, URL `https://apiv2.senso.ai/mcp`, auth API Key, name `senso-mcp`, publish, Connect with SENSO_API_KEY).
+3. When I post that the `rootlane-toolbox` integration is published, connect its credential yourself with `guild integration connect` and paste TOOLBOX_API_KEY into the masked prompt (I will not script secrets into external services).
+Backend change in flight: Guild drops header parameters, so the tools will read `incident_id` and the Guild session id from the request body.
+Status: open
