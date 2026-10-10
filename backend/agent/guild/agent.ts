@@ -9,11 +9,17 @@ import {
   type AgentOutput, finalOutput, incidentFromRows, incidentQuery, isMissingEndpoint, isReproduced,
   proposalHash, resolveIncidentId, verifyPassed,
 } from "./lib/outcome";
-import { SYSTEM, hypothesisPrompt, patchPrompt, queryPlanPrompt, reportPrompt, sourcePlanPrompt } from "./lib/prompts";
+import {
+  type SourceFile, asSourceFile, buildDiff, flaggedLines, hasTimeFor, missingPaths, numberedSource, stripFences, verifyErrorKind,
+} from "./lib/patch";
+import { SYSTEM, hypothesisPrompt, patchPrompt, queryPlanPrompt, reportPrompt, rulePrompt, sourcePlanPrompt } from "./lib/prompts";
 import { REPRODUCE_REQUEST_FIELD, toolArgs } from "./lib/tool-args";
 
 const LLM = [{ provider: "anthropic" as const, model: "claude-opus-5" }];
-const MAX_PATCH_ATTEMPTS = 3;
+// Guild's turn ceiling (3,600 s) less a margin so no call is cut off.
+const SESSION_BUDGET_MS = 3_600_000;
+const SAFETY_MARGIN_MS = 30_000;
+const MIN_STEP_MS = 120_000;
 
 const inputSchema = z.object({ incident_id: z.string().optional(), text: z.string().optional() });
 type Input = z.infer<typeof inputSchema>;
@@ -35,7 +41,11 @@ const Hypothesis = z.object({
     body: z.string().nullable(), expected_blocked_status: z.number().int(),
   }),
 });
-const Patch = z.object({ diff: z.string().min(1), rule_yaml: z.string().min(1) });
+const Patch = z.object({
+  edits: z.array(z.object({ path: z.string().min(1), old_text: z.string().min(1), new_text: z.string() })).min(1),
+  rule_yaml: z.string().min(1),
+});
+const Rule = z.object({ rule_yaml: z.string().min(1) });
 
 const tools = {
   ...RootlaneToolboxTools,
@@ -65,6 +75,7 @@ async function readIncident(task: Task<Tools>, id: string): Promise<Record<strin
 }
 
 async function run(input: Input, task: Task<Tools>): Promise<AgentOutput> {
+  const deadline = Date.now() + SESSION_BUDGET_MS - SAFETY_MARGIN_MS;
   const id = resolveIncidentId(input);
   if (!id) throw new Error("input carries no valid incident_id");
   const sid = task.sessionId;
@@ -125,27 +136,66 @@ async function run(input: Input, task: Task<Tools>): Promise<AgentOutput> {
   }
   await note(task, "Exploit reproduced on a fresh replica");
 
+  const files: SourceFile[] = sources.map(asSourceFile).filter((f): f is SourceFile => f !== null);
   let failure: unknown = null;
+  let candidate: { diff: string; rule_yaml: string } | null = null;
   let verified: { diff: string; rule_yaml: string; verification: unknown } | null = null;
-  for (let attempt = 1; attempt <= MAX_PATCH_ATTEMPTS && !verified; attempt++) {
-    const patch = await askJson(task, Patch, patchPrompt(hyp, sources, failure));
-    if (!patch) {
-      failure = "no valid diff/rule reply";
-      continue;
+  let attempts = 0;
+  let longestStepMs = 0;
+  while (!verified && hasTimeFor(Date.now(), deadline, longestStepMs, MIN_STEP_MS)) {
+    const stepStart = Date.now();
+    if (!candidate) {
+      attempts++;
+      const shown = files.map((f) => numberedSource(f, flaggedLines(findings, f.path)));
+      const patch = await askJson(task, Patch, patchPrompt(hyp, shown, failure));
+      if (!patch) {
+        failure = "no valid edits/rule_yaml reply";
+        longestStepMs = Math.max(longestStepMs, Date.now() - stepStart);
+        continue;
+      }
+      for (const path of missingPaths(patch.edits, files)) {
+        try {
+          const file = asSourceFile(await task.tools.rootlane_toolbox_read_source(toolArgs({ path, incident_id: id }, sid) as never));
+          if (file) files.push(file);
+        } catch (error) {
+          await note(task, `Could not read ${path}: ${String(error)}`);
+        }
+      }
+      const built = buildDiff(files, patch.edits);
+      if ("error" in built) {
+        failure = { edits: patch.edits, edit_error: built.error };
+        await note(task, `Patch attempt ${attempts}: edits rejected (${built.error})`);
+        longestStepMs = Math.max(longestStepMs, Date.now() - stepStart);
+        continue;
+      }
+      candidate = { diff: built.diff, rule_yaml: stripFences(patch.rule_yaml) };
     }
     let verification: unknown = null;
     try {
-      verification = await task.tools.rootlane_toolbox_verify_patch(toolArgs({ incident_id: id, diff: patch.diff, rule_yaml: patch.rule_yaml }, sid) as never);
+      verification = await task.tools.rootlane_toolbox_verify_patch(toolArgs({ incident_id: id, diff: candidate.diff, rule_yaml: candidate.rule_yaml }, sid) as never);
     } catch (error) {
       verification = { error: String(error) };
     }
     const passed = verifyPassed(verification);
-    await note(task, `Verify attempt ${attempt}: ${passed ? "passed" : "failed"}`);
-    if (passed) verified = { diff: patch.diff, rule_yaml: patch.rule_yaml, verification };
-    else failure = verification;
+    const errorKind = passed ? null : verifyErrorKind(verification);
+    await note(task, `Verify attempt ${attempts}: ${passed ? "passed" : errorKind === "rule" ? "invalid Semgrep rule, fixing the rule only" : errorKind === "busy" ? "sandbox busy, retrying" : "failed"}`);
+    if (passed) {
+      verified = { ...candidate, verification };
+    } else if (errorKind === "rule") {
+      const fixed: z.infer<typeof Rule> | null = await askJson(task, Rule, rulePrompt(candidate.rule_yaml, verification, candidate.diff));
+      if (fixed) candidate = { diff: candidate.diff, rule_yaml: stripFences(fixed.rule_yaml) };
+      else {
+        failure = { diff: candidate.diff, rule_yaml: candidate.rule_yaml, verify_patch: verification };
+        candidate = null;
+      }
+    } else if (errorKind !== "busy") {
+      failure = { diff: candidate.diff, rule_yaml: candidate.rule_yaml, verify_patch: verification };
+      candidate = null;
+    }
+    longestStepMs = Math.max(longestStepMs, Date.now() - stepStart);
   }
   if (!verified) {
-    return finalOutput(id, "fix_failed", `No patch passed verification in ${MAX_PATCH_ATTEMPTS} attempts. Last failure: ${JSON.stringify(failure)}`);
+    return finalOutput(id, "fix_failed", `No patch passed verification in ${attempts} attempts before the session time budget ran out. Last failure: ${JSON.stringify(failure)}`);
   }
 
   const report = (await task.llm.generateText({ system: SYSTEM, prompt: reportPrompt(hyp, verified.verification), llmPreferences: LLM })).text;

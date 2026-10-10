@@ -35,12 +35,35 @@ export function hypothesisPrompt(incident: unknown, rows: unknown, context: unkn
     "expected_blocked_status is the status a fixed server must return for that request."].join("\n\n")
 }
 
-export function patchPrompt(hypothesis: unknown, sources: unknown, failure: unknown): string {
-  return [dataBlock("hypothesis", hypothesis), dataBlock("source_files", sources, 12000),
-    failure ? `Previous attempt failed verification:\n${dataBlock("failure", failure, 4000)}` : "",
-    "Write a minimal unified diff (paths relative to the repo root, a/ and b/ prefixes) that closes the root cause without breaking login, search, basket or profile,",
-    "and a Semgrep rule (YAML) that matches the vulnerable pattern in the current code and not in the patched code.",
-    'Reply {"diff": "...", "rule_yaml": "..."}.'].filter(Boolean).join("\n\n")
+export const RULE_TEMPLATE = [
+  "rules:",
+  "  - id: rootlane-incident-pattern",
+  "    message: Describe the vulnerable pattern in one sentence",
+  "    severity: ERROR",
+  "    languages: [typescript]",
+  "    pattern: $DB.query(\"...\" + $INPUT)",
+].join("\n")
+
+const RULE_RULES = [
+  "rule_yaml is plain Semgrep YAML with no markdown fences, shaped exactly like this template (pattern may be replaced by patterns/pattern-either):",
+  RULE_TEMPLATE,
+  "It must match the vulnerable code in the current files and nothing in the patched files.",
+].join("\n")
+
+export function patchPrompt(hypothesis: unknown, sources: string[], failure: unknown): string {
+  return [dataBlock("hypothesis", hypothesis),
+    ...sources.map((s, i) => dataBlock(`source_file_${i + 1}`, s, 64000)),
+    failure ? `Previous attempt failed. Its edits and the actual verify_patch / replay output:\n${dataBlock("failure", failure, 8000)}` : "",
+    "Fix the root cause without breaking login, search, basket or profile. Source lines are shown as '<line number>| <text>'; never copy the number prefix.",
+    "Express the fix as edits: old_text is an exact, unique snippet copied verbatim from the shown source (whole lines, original indentation, no number prefix), new_text replaces it.",
+    RULE_RULES,
+    'Reply {"edits": [{"path": "repo/relative/path", "old_text": "...", "new_text": "..."}], "rule_yaml": "..."}.'].filter(Boolean).join("\n\n")
+}
+
+export function rulePrompt(ruleYaml: string, error: unknown, diff: string): string {
+  return [dataBlock("rule_yaml", ruleYaml, 4000), dataBlock("semgrep_error", error, 4000), dataBlock("patch_diff", diff, 12000),
+    "Semgrep could not run this rule. Fix only the rule; the patch stays as it is.", RULE_RULES,
+    'Reply {"rule_yaml": "..."}.'].join("\n\n")
 }
 
 export function reportPrompt(hypothesis: unknown, verification: unknown): string {
